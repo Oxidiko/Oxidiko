@@ -44,6 +44,7 @@ import { AnimatedBackground } from "@/components/animated-background"
 import crypto from "crypto"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import argon2 from "argon2"
 
 interface APIKeyData {
   companyName: string
@@ -89,17 +90,16 @@ export default function AdminDashboardPage() {
         throw new Error("Username and password are required")
       }
 
-      // Hash username + password with SHA256
+      // Hash username + password with Argon2 (random salt)
       const combinedString = username + password
-      const hash = crypto.createHash("sha256").update(combinedString).digest("hex")
-
-      // Compare with environment variable
       const adminHash = process.env.NEXT_PUBLIC_ADMIN_HASH
       if (!adminHash) {
         throw new Error("Admin authentication not configured")
       }
 
-      if (hash !== adminHash) {
+      // Verify the hash using argon2.verify (adminHash must be Argon2 hash)
+      const isValid = await argon2.verify(adminHash, combinedString)
+      if (!isValid) {
         throw new Error("Invalid username or password")
       }
 
