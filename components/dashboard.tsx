@@ -17,6 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   Shield,
   User,
@@ -26,7 +27,6 @@ import {
   MapPin,
   Lock,
   Copy,
-  ExternalLink,
   Edit,
   Save,
   X,
@@ -41,6 +41,8 @@ import {
   EyeOff,
   Fingerprint,
   Check,
+  Skull,
+  AlertTriangle,
 } from "lucide-react"
 import {
   getDecryptedProfile,
@@ -88,6 +90,8 @@ export function Dashboard() {
   const [credId, setCredId] = useState<string | null>(null)
   const [webAuthnSupported, setWebAuthnSupported] = useState(false)
   const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [showBackupWarning, setShowBackupWarning] = useState(false)
+  const [isDownloadingBackup, setIsDownloadingBackup] = useState(false)
 
   const countries = getCountryNames()
   const nationalities = getNationalityNames()
@@ -97,6 +101,12 @@ export function Dashboard() {
       try {
         const profileData = await getDecryptedProfile()
         setProfile(profileData)
+
+        // Check if this is the first time accessing dashboard after profile setup
+        const hasSeenBackupWarning = localStorage.getItem("oxidiko_backup_warning_seen")
+        if (!hasSeenBackupWarning) {
+          setShowBackupWarning(true)
+        }
       } catch (err) {
         console.error("Failed to load profile:", err)
       } finally {
@@ -185,6 +195,32 @@ export function Dashboard() {
       URL.revokeObjectURL(url)
     } catch (err: any) {
       setError(err.message || "Failed to export vault data")
+    }
+  }
+
+  const handleForceBackupDownload = async () => {
+    setIsDownloadingBackup(true)
+    try {
+      const vaultData = await exportVaultData()
+
+      // Create download link
+      const blob = new Blob([vaultData], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `oxidiko-vault-backup-${Date.now()}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      // Mark as seen and close dialog
+      localStorage.setItem("oxidiko_backup_warning_seen", "true")
+      setShowBackupWarning(false)
+    } catch (err: any) {
+      setError(err.message || "Failed to export vault data")
+    } finally {
+      setIsDownloadingBackup(false)
     }
   }
 
@@ -377,7 +413,11 @@ export function Dashboard() {
                               onClick={() => copyToClipboard(currentProfile.name, "name")}
                               className={`ml-2 ${copiedField === "name" ? "bg-green-700 hover:bg-green-800" : "text-gray-400 hover:text-white hover:bg-gray-700"}`}
                             >
-                              {copiedField === "name" ? <Check className="h-4 w-4 text-green-300" /> : <Copy className="h-4 w-4" />}
+                              {copiedField === "name" ? (
+                                <Check className="h-4 w-4 text-green-300" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
                             </Button>
                           )}
                         </div>
@@ -407,7 +447,11 @@ export function Dashboard() {
                               onClick={() => copyToClipboard(currentProfile.username, "username")}
                               className={`ml-2 ${copiedField === "username" ? "bg-green-700 hover:bg-green-800" : "text-gray-400 hover:text-white hover:bg-gray-700"}`}
                             >
-                              {copiedField === "username" ? <Check className="h-4 w-4 text-green-300" /> : <Copy className="h-4 w-4" />}
+                              {copiedField === "username" ? (
+                                <Check className="h-4 w-4 text-green-300" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
                             </Button>
                           )}
                         </div>
@@ -438,7 +482,11 @@ export function Dashboard() {
                               onClick={() => copyToClipboard(currentProfile.email, "email")}
                               className={`ml-2 ${copiedField === "email" ? "bg-green-700 hover:bg-green-800" : "text-gray-400 hover:text-white hover:bg-gray-700"}`}
                             >
-                              {copiedField === "email" ? <Check className="h-4 w-4 text-green-300" /> : <Copy className="h-4 w-4" />}
+                              {copiedField === "email" ? (
+                                <Check className="h-4 w-4 text-green-300" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
                             </Button>
                           )}
                         </div>
@@ -468,7 +516,11 @@ export function Dashboard() {
                               onClick={() => copyToClipboard(currentProfile.birthdate, "birthdate")}
                               className={`ml-2 ${copiedField === "birthdate" ? "bg-green-700 hover:bg-green-800" : "text-gray-400 hover:text-white hover:bg-gray-700"}`}
                             >
-                              {copiedField === "birthdate" ? <Check className="h-4 w-4 text-green-300" /> : <Copy className="h-4 w-4" />}
+                              {copiedField === "birthdate" ? (
+                                <Check className="h-4 w-4 text-green-300" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
                             </Button>
                           )}
                         </div>
@@ -499,7 +551,11 @@ export function Dashboard() {
                               onClick={() => copyToClipboard(currentProfile.phone, "phone")}
                               className={`ml-2 ${copiedField === "phone" ? "bg-green-700 hover:bg-green-800" : "text-gray-400 hover:text-white hover:bg-gray-700"}`}
                             >
-                              {copiedField === "phone" ? <Check className="h-4 w-4 text-green-300" /> : <Copy className="h-4 w-4" />}
+                              {copiedField === "phone" ? (
+                                <Check className="h-4 w-4 text-green-300" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
                             </Button>
                           )}
                         </div>
@@ -542,7 +598,11 @@ export function Dashboard() {
                               onClick={() => copyToClipboard(currentProfile.country, "country")}
                               className={`ml-2 ${copiedField === "country" ? "bg-green-700 hover:bg-green-800" : "text-gray-400 hover:text-white hover:bg-gray-700"}`}
                             >
-                              {copiedField === "country" ? <Check className="h-4 w-4 text-green-300" /> : <Copy className="h-4 w-4" />}
+                              {copiedField === "country" ? (
+                                <Check className="h-4 w-4 text-green-300" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
                             </Button>
                           )}
                         </div>
@@ -585,7 +645,11 @@ export function Dashboard() {
                               onClick={() => copyToClipboard(currentProfile.nationality, "nationality")}
                               className={`ml-2 ${copiedField === "nationality" ? "bg-green-700 hover:bg-green-800" : "text-gray-400 hover:text-white hover:bg-gray-700"}`}
                             >
-                              {copiedField === "nationality" ? <Check className="h-4 w-4 text-green-300" /> : <Copy className="h-4 w-4" />}
+                              {copiedField === "nationality" ? (
+                                <Check className="h-4 w-4 text-green-300" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
                             </Button>
                           )}
                         </div>
@@ -625,7 +689,11 @@ export function Dashboard() {
                               onClick={() => copyToClipboard(currentProfile.gender, "gender")}
                               className={`ml-2 ${copiedField === "gender" ? "bg-green-700 hover:bg-green-800" : "text-gray-400 hover:text-white hover:bg-gray-700"}`}
                             >
-                              {copiedField === "gender" ? <Check className="h-4 w-4 text-green-300" /> : <Copy className="h-4 w-4" />}
+                              {copiedField === "gender" ? (
+                                <Check className="h-4 w-4 text-green-300" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
                             </Button>
                           )}
                         </div>
@@ -655,7 +723,11 @@ export function Dashboard() {
                               onClick={() => copyToClipboard(currentProfile.language, "language")}
                               className={`ml-2 ${copiedField === "language" ? "bg-green-700 hover:bg-green-800" : "text-gray-400 hover:text-white hover:bg-gray-700"}`}
                             >
-                              {copiedField === "language" ? <Check className="h-4 w-4 text-green-300" /> : <Copy className="h-4 w-4" />}
+                              {copiedField === "language" ? (
+                                <Check className="h-4 w-4 text-green-300" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
                             </Button>
                           )}
                         </div>
@@ -686,7 +758,11 @@ export function Dashboard() {
                             onClick={() => copyToClipboard(currentProfile.address, "address")}
                             className={`ml-2 ${copiedField === "address" ? "bg-green-700 hover:bg-green-800" : "text-gray-400 hover:text-white hover:bg-gray-700"}`}
                           >
-                            {copiedField === "address" ? <Check className="h-4 w-4 text-green-300" /> : <Copy className="h-4 w-4" />}
+                            {copiedField === "address" ? (
+                              <Check className="h-4 w-4 text-green-300" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
                           </Button>
                         )}
                       </div>
@@ -721,7 +797,11 @@ export function Dashboard() {
                                 onClick={() => copyToClipboard(currentProfile.creditCard, "creditCard")}
                                 className={`ml-2 ${copiedField === "creditCard" ? "bg-green-700 hover:bg-green-800" : "text-gray-400 hover:text-white hover:bg-gray-700"}`}
                               >
-                                {copiedField === "creditCard" ? <Check className="h-4 w-4 text-green-300" /> : <Copy className="h-4 w-4" />}
+                                {copiedField === "creditCard" ? (
+                                  <Check className="h-4 w-4 text-green-300" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
                               </Button>
                             )}
                           </div>
@@ -749,7 +829,11 @@ export function Dashboard() {
                                 onClick={() => copyToClipboard(currentProfile.creditCardExpiry, "creditCardExpiry")}
                                 className={`ml-2 ${copiedField === "creditCardExpiry" ? "bg-green-700 hover:bg-green-800" : "text-gray-400 hover:text-white hover:bg-gray-700"}`}
                               >
-                                {copiedField === "creditCardExpiry" ? <Check className="h-4 w-4 text-green-300" /> : <Copy className="h-4 w-4" />}
+                                {copiedField === "creditCardExpiry" ? (
+                                  <Check className="h-4 w-4 text-green-300" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
                               </Button>
                             )}
                           </div>
@@ -777,7 +861,11 @@ export function Dashboard() {
                                 onClick={() => copyToClipboard(currentProfile.creditCardCCV, "creditCardCCV")}
                                 className={`ml-2 ${copiedField === "creditCardCCV" ? "bg-green-700 hover:bg-green-800" : "text-gray-400 hover:text-white hover:bg-gray-700"}`}
                               >
-                                {copiedField === "creditCardCCV" ? <Check className="h-4 w-4 text-green-300" /> : <Copy className="h-4 w-4" />}
+                                {copiedField === "creditCardCCV" ? (
+                                  <Check className="h-4 w-4 text-green-300" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
                               </Button>
                             )}
                           </div>
@@ -818,7 +906,11 @@ export function Dashboard() {
                       onClick={() => copyToClipboard(getCurrentOxidikoId() || "", "oxidikoId")}
                       className={`text-gray-400 hover:text-white hover:bg-gray-700 p-1 h-auto ${copiedField === "oxidikoId" ? "bg-green-700 hover:bg-green-800" : ""}`}
                     >
-                      {copiedField === "oxidikoId" ? <Check className="h-3 w-3 text-green-300" /> : <Copy className="h-3 w-3" />}
+                      {copiedField === "oxidikoId" ? (
+                        <Check className="h-3 w-3 text-green-300" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -851,6 +943,68 @@ export function Dashboard() {
             )}
           </div>
         </div>
+
+        {/* Backup Warning Dialog */}
+        <Dialog open={showBackupWarning} onOpenChange={() => {}}>
+          <DialogContent className="bg-gray-950 border-red-800 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-red-400 flex items-center gap-3 text-xl">
+                <Skull className="h-6 w-6" />💀 BACK UP YOUR VAULT OR REGRET IT FOREVER
+              </DialogTitle>
+              <DialogDescription className="text-gray-300 text-base leading-relaxed space-y-4 mt-4">
+                <p className="font-semibold">
+                  Listen up: your vault is your life. If you don't save it somewhere safe, don't come crying when it's
+                  gone.
+                </p>
+
+                <div className="space-y-2 text-red-300">
+                  <p>• Lose your phone? → bye-bye 👋</p>
+                  <p>• Uninstall your browser? → bye-bye 👋</p>
+                  <p>• Clear your site cache like a genius? → bye-bye 👋</p>
+                  <p>• Someone steals it because you didn't back it up? → bye-bye 👋</p>
+                </div>
+
+                <p className="text-yellow-300 font-medium">
+                  We're not magicians. If you lose it, we can't pull it out of thin air for you.
+                </p>
+
+                <p className="text-blue-300">
+                  Oh, and your oxidiko_id? Yeah, that's not just some random string of gibberish. Save that too.
+                  Somewhere safe. Somewhere you can actually find it when you need it. It will help you recover your
+                  account on some websites if you have lost your wallet.
+                </p>
+
+                <p className="text-red-400 font-bold text-lg">Stop living on the edge. Back it up. Now.</p>
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex justify-center pt-4">
+              <Button
+                onClick={handleForceBackupDownload}
+                disabled={isDownloadingBackup}
+                className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 text-lg font-semibold"
+              >
+                {isDownloadingBackup ? (
+                  <>
+                    <Download className="h-5 w-5 mr-2 animate-pulse" />
+                    Downloading Backup...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-5 w-5 mr-2" />
+                    Download My Vault Backup
+                  </>
+                )}
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-center gap-2 text-gray-500 text-sm mt-4">
+              <AlertTriangle className="h-4 w-4" />
+              <span>This dialog will only close after you download your backup</span>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <AlertDialog open={showObliterateDialog} onOpenChange={setShowObliterateDialog}>
           <AlertDialogContent className="bg-gray-950 border-red-800">
             <AlertDialogHeader>
