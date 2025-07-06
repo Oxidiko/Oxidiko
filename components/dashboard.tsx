@@ -949,7 +949,7 @@ export function Dashboard() {
           <DialogContent className="bg-gray-950 border-red-800 max-w-2xl">
             <DialogHeader>
               <DialogTitle className="text-red-400 flex items-center gap-3 text-xl">
-                <Skull className="h-6 w-6" />💀 BACK UP YOUR VAULT OR REGRET IT FOREVER
+                <Skull className="h-6 w-6" />BACK UP YOUR VAULT OR REGRET IT FOREVER
               </DialogTitle>
               <DialogDescription className="text-gray-300 text-base leading-relaxed space-y-4 mt-4">
                 <p className="font-semibold">
@@ -965,7 +965,7 @@ export function Dashboard() {
                 </div>
 
                 <p className="text-yellow-300 font-medium">
-                  We're not magicians. If you lose it, we can't pull it out of thin air for you.
+                  We're not magicians. If you lose it, we can't pull it out of thin air for you. Oxidiko is serverless: all your data stays on your phone. This is what makes it secure and private, but it also means you need to take responsibility for your own data.
                 </p>
 
                 <p className="text-blue-300">
