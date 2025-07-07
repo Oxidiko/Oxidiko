@@ -947,34 +947,37 @@ export function Dashboard() {
         {/* Backup Warning Dialog */}
         <Dialog open={showBackupWarning} onOpenChange={() => {}}>
           <DialogContent
-            className="bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 border-2 border-yellow-600 shadow-2xl shadow-yellow-900/30 rounded-2xl max-w-2xl"
+            className="bg-gray-950 border-red-800 max-w-2xl"
             style={{ width: '98vw', height: '98vh', maxWidth: '98vw', maxHeight: '98vh' }}
           >
             <DialogHeader>
-              <DialogTitle className="text-yellow-400 flex items-center gap-3 text-2xl font-extrabold tracking-wide drop-shadow-lg">
-                <Skull className="h-7 w-7 text-yellow-500 animate-pulse" />BACK UP YOUR VAULT OR REGRET IT FOREVER
+              <DialogTitle className="text-red-400 flex items-center gap-3 text-xl">
+                <Skull className="h-6 w-6" />BACK UP YOUR VAULT OR REGRET IT FOREVER
               </DialogTitle>
-              <DialogDescription className="text-gray-200 text-base leading-relaxed space-y-4 mt-4 font-medium">
-                <p className="font-semibold text-yellow-200 text-lg">
-                  Listen up: your vault is your life. If you don't save it somewhere safe, don't come crying when it's gone.
+              <DialogDescription className="text-gray-300 text-base leading-relaxed space-y-4 mt-4">
+                <p className="font-semibold">
+                  Listen up: your vault is your life. If you don't save it somewhere safe, don't come crying when it's
+                  gone.
                 </p>
 
-                <div className="space-y-2 text-yellow-300 font-semibold">
-                  <p>• Lose your phone? <span className='text-pink-400 font-bold'>→ bye-bye 👋</span></p>
-                  <p>• Uninstall your browser? <span className='text-pink-400 font-bold'>→ bye-bye 👋</span></p>
-                  <p>• Clear your site cache like a genius? <span className='text-pink-400 font-bold'>→ bye-bye 👋</span></p>
-                  <p>• Someone steals it because you didn't back it up? <span className='text-pink-400 font-bold'>→ bye-bye 👋</span></p>
+                <div className="space-y-2 text-red-300">
+                  <p>• Lose your phone? → bye-bye 👋</p>
+                  <p>• Uninstall your browser? → bye-bye 👋</p>
+                  <p>• Clear your site cache like a genius? → bye-bye 👋</p>
+                  <p>• Someone steals it because you didn't back it up? → bye-bye 👋</p>
                 </div>
 
-                <p className="text-yellow-300 font-bold italic">
+                <p className="text-yellow-300 font-medium">
                   We're not magicians. If you lose it, we can't pull it out of thin air for you. Oxidiko is serverless: all your data stays on your phone. This is what makes it secure and private, but it also means you need to take responsibility for your own data.
                 </p>
 
-                <p className="text-blue-300 font-semibold">
-                  Oh, and your oxidiko_id? <span className="underline underline-offset-2">Yeah, that's not just some random string of gibberish.</span> Save that too. Somewhere safe. Somewhere you can actually find it when you need it. It will help you recover your account on some websites if you have lost your wallet.
+                <p className="text-blue-300">
+                  Oh, and your oxidiko_id? Yeah, that's not just some random string of gibberish. Save that too.
+                  Somewhere safe. Somewhere you can actually find it when you need it. It will help you recover your
+                  account on some websites if you have lost your wallet.
                 </p>
 
-                <p className="text-yellow-400 font-extrabold text-xl text-center mt-6 drop-shadow">Stop living on the edge. Back it up. Now.</p>
+                <p className="text-red-400 font-bold text-lg">Stop living on the edge. Back it up. Now.</p>
               </DialogDescription>
             </DialogHeader>
 
@@ -982,24 +985,24 @@ export function Dashboard() {
               <Button
                 onClick={handleForceBackupDownload}
                 disabled={isDownloadingBackup}
-                className="bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-gray-900 px-10 py-4 text-xl font-bold shadow-lg shadow-yellow-900/30 rounded-lg border-2 border-yellow-700"
+                className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 text-lg font-semibold"
               >
                 {isDownloadingBackup ? (
                   <>
-                    <Download className="h-6 w-6 mr-2 animate-pulse text-yellow-900" />
+                    <Download className="h-5 w-5 mr-2 animate-pulse" />
                     Downloading Backup...
                   </>
                 ) : (
                   <>
-                    <Download className="h-6 w-6 mr-2 text-yellow-900" />
+                    <Download className="h-5 w-5 mr-2" />
                     Download My Vault Backup
                   </>
                 )}
               </Button>
             </div>
 
-            <div className="flex items-center justify-center gap-2 text-yellow-300 text-base mt-6 font-semibold">
-              <AlertTriangle className="h-5 w-5 text-yellow-400 animate-bounce" />
+            <div className="flex items-center justify-center gap-2 text-gray-500 text-sm mt-4">
+              <AlertTriangle className="h-4 w-4" />
               <span>This dialog will only close after you download your backup</span>
             </div>
           </DialogContent>
