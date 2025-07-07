@@ -477,10 +477,7 @@ export default function AdminDashboardPage() {
                         </div>
                         <p className="text-2xl font-bold text-white">{stats?.byPlan[plan] || 0}</p>
                         <p className="text-xs text-gray-400 mt-1">
-                          {planActiveCounts[plan]} active × ${planPrices[plan]} = ${planRevenues[plan]}
-                          {plan !== "free" && (
-                            <span> <span className="text-gray-500">$</span>{planRevenues[plan]} from {planActiveCounts[plan]} active</span>
-                          )}
+                          ${planRevenues[plan]}
                         </p>
                       </div>
                     ))}
