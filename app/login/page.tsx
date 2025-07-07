@@ -1,13 +1,9 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { AuthHandler } from "@/components/auth-handler"
 import { validateAPIKey } from "@/lib/api-validation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useEffect, useState } from "react"
-
-export const metadata = {
-  title: "Oxidiko - Login",
-}
 
 export default function LoginPage() {
   const [isAuthFlow, setIsAuthFlow] = useState(false)

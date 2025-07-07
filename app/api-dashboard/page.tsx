@@ -43,10 +43,6 @@ interface APIKeyData {
   updatedAt?: string
 }
 
-export const metadata = {
-  title: "Oxidiko - API dashboard",
-}
-
 export default function APIDashboardPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)

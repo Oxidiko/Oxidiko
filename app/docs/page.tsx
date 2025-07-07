@@ -12,10 +12,6 @@ import { AnimatedBackground } from "@/components/animated-background"
 import hljs from "highlight.js"
 import "highlight.js/styles/tokyo-night-dark.css"
 
-export const metadata = {
-  title: "Oxidiko - Docs",
-}
-
 export default function Docs() {
   const router = useRouter()
   const [codeCopied, setCodeCopied] = useState(false)

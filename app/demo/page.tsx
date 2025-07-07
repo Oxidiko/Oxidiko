@@ -11,10 +11,6 @@ import { verifyJWT as verifyJWTClaimsOnly } from "@/lib/jwt-utils"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-export const metadata = {
-	title: "Oxidiko - Demo",
-}
-
 const availableFields = [
 	{ id: "name", label: "Full Name", icon: "\uD83D\uDC64" },
 	{ id: "username", label: "Username", icon: "\uD83D\uDC64" },
