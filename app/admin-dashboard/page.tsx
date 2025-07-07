@@ -459,7 +459,7 @@ export default function AdminDashboardPage() {
                   <CardTitle className="text-white flex items-center gap-2">
                     <BarChart3 className="h-5 w-5 text-blue-400" />
                     Plan Distribution
-                    <span className="text-xs text-gray-400 font-normal ml-2">${`$${totalRevenue}`} total</span>
+                    <span className="text-sm text-gray-400 font-normal ml-2">{`$${totalRevenue}`} total</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
