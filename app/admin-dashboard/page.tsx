@@ -224,6 +224,34 @@ export default function AdminDashboardPage() {
     }
   }
 
+  // Plan prices in dollars
+  const planPrices: Record<string, number> = {
+    free: 0,
+    starter: 15,
+    premium: 50,
+    elite: 150,
+  }
+
+  // Calculate active plans and revenue per plan
+  const planActiveCounts: Record<string, number> = {
+    free: 0,
+    starter: 0,
+    premium: 0,
+    elite: 0,
+  }
+  apiKeys.forEach((key) => {
+    if (key.isActive && planActiveCounts.hasOwnProperty(key.planId)) {
+      planActiveCounts[key.planId]++
+    }
+  })
+  const planRevenues: Record<string, number> = {
+    free: 0,
+    starter: planActiveCounts.starter * planPrices.starter,
+    premium: planActiveCounts.premium * planPrices.premium,
+    elite: planActiveCounts.elite * planPrices.elite,
+  }
+  const totalRevenue = planRevenues.starter + planRevenues.premium + planRevenues.elite
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -431,6 +459,7 @@ export default function AdminDashboardPage() {
                   <CardTitle className="text-white flex items-center gap-2">
                     <BarChart3 className="h-5 w-5 text-blue-400" />
                     Plan Distribution
+                    <span className="text-xs text-gray-400 font-normal ml-2">${`$${totalRevenue}`} total</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -447,6 +476,12 @@ export default function AdminDashboardPage() {
                           <p className="text-sm text-gray-400">{getPlanName(plan)}</p>
                         </div>
                         <p className="text-2xl font-bold text-white">{stats?.byPlan[plan] || 0}</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {planActiveCounts[plan]} active × ${planPrices[plan]} = ${planRevenues[plan]}
+                          {plan !== "free" && (
+                            <span> <span className="text-gray-500">$</span>{planRevenues[plan]} from {planActiveCounts[plan]} active</span>
+                          )}
+                        </p>
                       </div>
                     ))}
                   </div>
