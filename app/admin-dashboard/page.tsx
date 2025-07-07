@@ -64,6 +64,10 @@ interface APIKeyStats {
   inactive: number
 }
 
+export const metadata = {
+  title: "Oxidiko - Admin Dashboard",
+}
+
 export default function AdminDashboardPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)

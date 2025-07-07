@@ -26,6 +26,10 @@ interface Plan {
   quota: number
 }
 
+export const metadata = {
+  title: "Oxidiko - API Pricing",
+}
+
 export default function APIPage() {
   const router = useRouter()
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)

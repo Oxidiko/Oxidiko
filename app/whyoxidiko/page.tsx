@@ -8,6 +8,10 @@ import { Shield, Lock, Fingerprint, ArrowLeft, Check, X, AlertTriangle, Eye, Ser
 import { useRouter } from "next/navigation"
 import { AnimatedBackground } from "@/components/animated-background"
 
+export const metadata = {
+  title: "Why Oxidiko",
+}
+
 export default function WhyOxidiko() {
   const router = useRouter()
 

@@ -12,6 +12,10 @@ import { AnimatedBackground } from "@/components/animated-background"
 import hljs from "highlight.js"
 import "highlight.js/styles/tokyo-night-dark.css"
 
+export const metadata = {
+  title: "Oxidiko - Docs",
+}
+
 export default function Docs() {
   const router = useRouter()
   const [codeCopied, setCodeCopied] = useState(false)
@@ -20,7 +24,8 @@ export default function Docs() {
     router.push("/")
   }
 
-  const codeExample = `<script src="https://cdn.jsdelivr.net/gh/Oxidiko/oxidiko-sdk@main/oxidiko-sdk.js"></script>
+  const codeExample = `// Include Oxidiko SDK
+<script src="https://cdn.jsdelivr.net/gh/Oxidiko/oxidiko-sdk@main/oxidiko-sdk.js"></script>
 
 // Initialize OxidikoAuth
 const oxidiko = new OxidikoAuth({

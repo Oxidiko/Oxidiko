@@ -11,6 +11,10 @@ import { checkVaultExists, isVaultUnlocked } from "@/lib/vault-storage"
 import { useRouter } from "next/navigation"
 import { AnimatedBackground } from "@/components/animated-background"
 
+export const metadata = {
+  title: "Oxidiko",
+}
+
 export default function Home() {
   const [hasVault, setHasVault] = useState(false)
   const [isUnlocked, setIsUnlocked] = useState(false)
