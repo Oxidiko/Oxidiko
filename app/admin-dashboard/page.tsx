@@ -459,7 +459,7 @@ export default function AdminDashboardPage() {
                   <CardTitle className="text-white flex items-center gap-2">
                     <BarChart3 className="h-5 w-5 text-blue-400" />
                     Plan Distribution
-                    <span className="text-sm text-gray-400 font-normal ml-2">{`$${totalRevenue}`} total</span>
+                    <span className="text-sm text-gray-400 font-normal ml-2">{`$${totalRevenue}`}/month total</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -477,7 +477,7 @@ export default function AdminDashboardPage() {
                         </div>
                         <p className="text-2xl font-bold text-white">{stats?.byPlan[plan] || 0}</p>
                         <p className="text-xs text-gray-400 mt-1">
-                          ${planRevenues[plan]}
+                          ${planRevenues[plan]}/month
                         </p>
                       </div>
                     ))}
