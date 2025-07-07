@@ -1,6 +1,5 @@
 "use client"
 
-import Head from "next/head"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -141,224 +140,219 @@ export default function DemoPage() {
 	}
 
 	return (
-		<>
-			<Head>
-				<title>oxidiko - demo</title>
-			</Head>
-			<div className="min-h-screen bg-black text-white overflow-x-hidden">
-				<div className="w-full max-w-6xl mx-auto px-2 sm:px-4 py-4 sm:py-8 overflow-x-hidden">
-					<div className="w-full overflow-x-hidden">
-						<div className="text-center mb-6 sm:mb-8">
-							<h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4">Oxidiko Web Vault Demo</h1>
-							<p className="text-gray-400 text-base sm:text-lg">Test the OAuth-style authentication flow</p>
+		<div className="min-h-screen bg-black text-white overflow-x-hidden">
+			<div className="w-full max-w-6xl mx-auto px-2 sm:px-4 py-4 sm:py-8 overflow-x-hidden">
+				<div className="w-full overflow-x-hidden">
+					<div className="text-center mb-6 sm:mb-8">
+						<h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4">Oxidiko Web Vault Demo</h1>
+						<p className="text-gray-400 text-base sm:text-lg">Test the OAuth-style authentication flow</p>
+					</div>
+
+					<div className="grid lg:grid-cols-2 gap-4 lg:gap-8 w-full overflow-x-hidden">
+						<div className="space-y-4 sm:space-y-6 w-full overflow-x-hidden">
+							<Card className="bg-gray-950 border-gray-800 w-full overflow-x-hidden">
+								<CardHeader className="w-full overflow-x-hidden">
+									<CardTitle className="text-white flex items-center gap-2">
+										<User className="h-5 w-5" />
+										Step 1: Select Data to Request
+									</CardTitle>
+								</CardHeader>
+								<CardContent className="space-y-4 w-full overflow-x-hidden">
+									<p className="text-gray-400">Choose which information you want to request from the user:</p>
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full overflow-x-hidden">
+										{availableFields.map((field) => (
+											<div key={field.id} className="flex items-center space-x-2 w-full overflow-x-hidden">
+												<Checkbox
+													id={field.id}
+													checked={selectedFields.includes(field.id)}
+													onCheckedChange={() => handleFieldToggle(field.id)}
+													className="border-gray-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 flex-shrink-0"
+												/>
+												<label
+													htmlFor={field.id}
+													className="text-sm text-gray-300 cursor-pointer flex items-center gap-2 min-w-0 overflow-hidden"
+												>
+													<span className="flex-shrink-0">{field.icon}</span>
+													<span className="truncate">{field.label}</span>
+												</label>
+											</div>
+										))}
+									</div>
+									{selectedFields.length > 0 && (
+										<div className="mt-4 w-full overflow-x-hidden">
+											<p className="text-sm text-gray-400 mb-2">Selected fields:</p>
+											<div className="flex flex-wrap gap-2 w-full overflow-x-hidden">
+												{selectedFields.map((fieldId) => {
+													const field = availableFields.find((f) => f.id === fieldId)
+													return (
+														<Badge
+															key={fieldId}
+															className="bg-blue-900 text-blue-400 text-xs sm:text-sm flex-shrink-0 hover:bg-blue-900"
+														>
+															{field?.icon} {field?.label}
+														</Badge>
+													)
+												})}
+											</div>
+										</div>
+									)}
+								</CardContent>
+							</Card>
+
+							<Card className="bg-gray-950 border-gray-800 w-full overflow-x-hidden">
+								<CardHeader className="w-full overflow-x-hidden">
+									<CardTitle className="text-white flex items-center gap-2">
+										<User className="h-5 w-5" />
+										Step 2: API Configuration
+									</CardTitle>
+								</CardHeader>
+								<CardContent className="space-y-4 w-full overflow-x-hidden">
+									<div className="space-y-2">
+										<Label htmlFor="api-key" className="text-gray-300">
+											API Key
+										</Label>
+										<Input
+											id="api-key"
+											type="password"
+											placeholder="Enter your API key..."
+											value={apiKey}
+											onChange={(e) => setApiKey(e.target.value)}
+											className="bg-gray-800 border-gray-700 text-white placeholder-gray-500"
+										/>
+										<p className="text-xs text-gray-500">
+											Get your API key from the{" "}
+											<a href="/api-dashboard" className="text-blue-400 hover:underline">
+												API Dashboard
+											</a>
+										</p>
+									</div>
+								</CardContent>
+							</Card>
+
+							<Card className="bg-gray-950 border-gray-800 w-full overflow-x-hidden">
+								<CardHeader className="w-full overflow-x-hidden">
+									<CardTitle className="text-white flex items-center gap-2">
+										<User className="h-5 w-5" />
+										Step 3: Initiate Login
+									</CardTitle>
+								</CardHeader>
+								<CardContent className="space-y-4 w-full overflow-x-hidden">
+									<p className="text-gray-400">
+										Click the button below to open the authentication popup with your selected fields.
+									</p>
+									<Button
+										onClick={handleLogin}
+										disabled={selectedFields.length === 0}
+										className="w-full bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+									>
+										<ExternalLink className="h-4 w-4 mr-2" />
+										<span className="hidden sm:inline">Login with Oxidiko Web Vault</span>
+										<span className="sm:hidden">Login with Oxidiko</span>
+									</Button>
+									{error && (
+										<Alert className="bg-red-900/20 border-red-800 w-full overflow-x-hidden">
+											<AlertDescription className="text-red-400">{error}</AlertDescription>
+										</Alert>
+									)}
+								</CardContent>
+							</Card>
 						</div>
 
-						<div className="grid lg:grid-cols-2 gap-4 lg:gap-8 w-full overflow-x-hidden">
-							<div className="space-y-4 sm:space-y-6 w-full overflow-x-hidden">
+						<div className="space-y-4 sm:space-y-6 w-full overflow-x-hidden">
+							{userData ? (
 								<Card className="bg-gray-950 border-gray-800 w-full overflow-x-hidden">
 									<CardHeader className="w-full overflow-x-hidden">
 										<CardTitle className="text-white flex items-center gap-2">
 											<User className="h-5 w-5" />
-											Step 1: Select Data to Request
+											Authenticated User Data
 										</CardTitle>
 									</CardHeader>
 									<CardContent className="space-y-4 w-full overflow-x-hidden">
-										<p className="text-gray-400">Choose which information you want to request from the user:</p>
-										<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full overflow-x-hidden">
-											{availableFields.map((field) => (
-												<div key={field.id} className="flex items-center space-x-2 w-full overflow-x-hidden">
-													<Checkbox
-														id={field.id}
-														checked={selectedFields.includes(field.id)}
-														onCheckedChange={() => handleFieldToggle(field.id)}
-														className="border-gray-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 flex-shrink-0"
-													/>
-													<label
-														htmlFor={field.id}
-														className="text-sm text-gray-300 cursor-pointer flex items-center gap-2 min-w-0 overflow-hidden"
-													>
-														<span className="flex-shrink-0">{field.icon}</span>
-														<span className="truncate">{field.label}</span>
-													</label>
-												</div>
-											))}
-										</div>
-										{selectedFields.length > 0 && (
-											<div className="mt-4 w-full overflow-x-hidden">
-												<p className="text-sm text-gray-400 mb-2">Selected fields:</p>
-												<div className="flex flex-wrap gap-2 w-full overflow-x-hidden">
-													{selectedFields.map((fieldId) => {
-														const field = availableFields.find((f) => f.id === fieldId)
-														return (
-															<Badge
-																key={fieldId}
-																className="bg-blue-900 text-blue-400 text-xs sm:text-sm flex-shrink-0 hover:bg-blue-900"
-															>
-																{field?.icon} {field?.label}
-															</Badge>
-														)
-													})}
-												</div>
+										<div className="space-y-3 w-full overflow-x-hidden">
+											<div className="flex items-center justify-between w-full overflow-x-hidden">
+												<span className="text-gray-400">User ID:</span>
+												<Badge className="bg-blue-900 text-blue-400 hover:bg-blue-900">{userData.oxidiko_id}</Badge>
 											</div>
-										)}
-									</CardContent>
-								</Card>
 
-								<Card className="bg-gray-950 border-gray-800 w-full overflow-x-hidden">
-									<CardHeader className="w-full overflow-x-hidden">
-										<CardTitle className="text-white flex items-center gap-2">
-											<User className="h-5 w-5" />
-											Step 2: API Configuration
-										</CardTitle>
-									</CardHeader>
-									<CardContent className="space-y-4 w-full overflow-x-hidden">
-										<div className="space-y-2">
-											<Label htmlFor="api-key" className="text-gray-300">
-												API Key
-											</Label>
-											<Input
-												id="api-key"
-												type="password"
-												placeholder="Enter your API key..."
-												value={apiKey}
-												onChange={(e) => setApiKey(e.target.value)}
-												className="bg-gray-800 border-gray-700 text-white placeholder-gray-500"
-											/>
-											<p className="text-xs text-gray-500">
-												Get your API key from the{" "}
-												<a href="/api-dashboard" className="text-blue-400 hover:underline">
-													API Dashboard
-												</a>
-											</p>
+											{userData.rec_id && (
+												<div className="flex items-center justify-between w-full overflow-x-hidden">
+													<span className="text-gray-400 flex items-center gap-2">
+														<span>🔑</span>
+														Recovery ID:
+													</span>
+													<span className="text-white font-mono text-sm break-all overflow-wrap-anywhere min-w-0">
+														{userData.rec_id.substring(0, 16)}...
+													</span>
+												</div>
+											)}
+
+											{selectedFields.includes("none") ? (
+												<div className="text-center py-4">
+													<span className="text-gray-400">🚫 No additional data requested</span>
+												</div>
+											) : (
+												selectedFields.map((fieldId) => {
+													const field = availableFields.find((f) => f.id === fieldId)
+													const value = userData[fieldId]
+													if (!value) return null
+
+													return (
+														<div
+															key={fieldId}
+															className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2 w-full overflow-x-hidden"
+														>
+															<span className="text-gray-400 flex items-center gap-2 flex-shrink-0">
+																<span>{field?.icon}</span>
+																{field?.label}:
+															</span>
+															<span className="text-white break-all overflow-wrap-anywhere min-w-0">{value}</span>
+														</div>
+													)
+												})
+											)}
+
+											<div className="flex items-center justify-between w-full overflow-x-hidden">
+												<span className="text-gray-400">Issued At:</span>
+												<span className="text-white">{new Date(userData.iat * 1000).toLocaleString()}</span>
+											</div>
+
+											<div className="flex items-center justify-between w-full overflow-x-hidden">
+												<span className="text-gray-400">Expires At:</span>
+												<span className="text-white">{new Date(userData.exp * 1000).toLocaleString()}</span>
+											</div>
 										</div>
 									</CardContent>
 								</Card>
-
+							) : (
 								<Card className="bg-gray-950 border-gray-800 w-full overflow-x-hidden">
 									<CardHeader className="w-full overflow-x-hidden">
-										<CardTitle className="text-white flex items-center gap-2">
-											<User className="h-5 w-5" />
-											Step 3: Initiate Login
-										</CardTitle>
+										<CardTitle className="text-white">Waiting for Authentication</CardTitle>
+									</CardHeader>
+									<CardContent className="w-full overflow-x-hidden">
+										<p className="text-gray-400">Complete the login flow to see the authenticated user data here.</p>
+									</CardContent>
+								</Card>
+							)}
+
+							{token && (
+								<Card className="bg-gray-950 border-gray-800 w-full overflow-x-hidden">
+									<CardHeader className="w-full overflow-x-hidden">
+										<CardTitle className="text-white">JWT Token</CardTitle>
 									</CardHeader>
 									<CardContent className="space-y-4 w-full overflow-x-hidden">
-										<p className="text-gray-400">
-											Click the button below to open the authentication popup with your selected fields.
-										</p>
-										<Button
-											onClick={handleLogin}
-											disabled={selectedFields.length === 0}
-											className="w-full bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
-										>
-											<ExternalLink className="h-4 w-4 mr-2" />
-											<span className="hidden sm:inline">Login with Oxidiko Web Vault</span>
-											<span className="sm:hidden">Login with Oxidiko</span>
+										<div className="bg-gray-800 p-2 sm:p-3 rounded-lg w-full overflow-x-hidden">
+											<p className="text-xs text-gray-300 break-all font-mono overflow-wrap-anywhere w-full">{token}</p>
+										</div>
+										<Button onClick={handleVerifyToken} className="w-full bg-gray-800 hover:bg-gray-700 text-white">
+											Verify Token
 										</Button>
-										{error && (
-											<Alert className="bg-red-900/20 border-red-800 w-full overflow-x-hidden">
-												<AlertDescription className="text-red-400">{error}</AlertDescription>
-											</Alert>
-										)}
 									</CardContent>
 								</Card>
-							</div>
-
-							<div className="space-y-4 sm:space-y-6 w-full overflow-x-hidden">
-								{userData ? (
-									<Card className="bg-gray-950 border-gray-800 w-full overflow-x-hidden">
-										<CardHeader className="w-full overflow-x-hidden">
-											<CardTitle className="text-white flex items-center gap-2">
-												<User className="h-5 w-5" />
-												Authenticated User Data
-											</CardTitle>
-										</CardHeader>
-										<CardContent className="space-y-4 w-full overflow-x-hidden">
-											<div className="space-y-3 w-full overflow-x-hidden">
-												<div className="flex items-center justify-between w-full overflow-x-hidden">
-													<span className="text-gray-400">User ID:</span>
-													<Badge className="bg-blue-900 text-blue-400 hover:bg-blue-900">{userData.oxidiko_id}</Badge>
-												</div>
-
-												{userData.rec_id && (
-													<div className="flex items-center justify-between w-full overflow-x-hidden">
-														<span className="text-gray-400 flex items-center gap-2">
-															<span>🔑</span>
-															Recovery ID:
-														</span>
-														<span className="text-white font-mono text-sm break-all overflow-wrap-anywhere min-w-0">
-															{userData.rec_id.substring(0, 16)}...
-														</span>
-													</div>
-												)}
-
-												{selectedFields.includes("none") ? (
-													<div className="text-center py-4">
-														<span className="text-gray-400">🚫 No additional data requested</span>
-													</div>
-												) : (
-													selectedFields.map((fieldId) => {
-														const field = availableFields.find((f) => f.id === fieldId)
-														const value = userData[fieldId]
-														if (!value) return null
-
-														return (
-															<div
-																key={fieldId}
-																className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2 w-full overflow-x-hidden"
-															>
-																<span className="text-gray-400 flex items-center gap-2 flex-shrink-0">
-																	<span>{field?.icon}</span>
-																	{field?.label}:
-																</span>
-																<span className="text-white break-all overflow-wrap-anywhere min-w-0">{value}</span>
-															</div>
-														)
-													})
-												)}
-
-												<div className="flex items-center justify-between w-full overflow-x-hidden">
-													<span className="text-gray-400">Issued At:</span>
-													<span className="text-white">{new Date(userData.iat * 1000).toLocaleString()}</span>
-												</div>
-
-												<div className="flex items-center justify-between w-full overflow-x-hidden">
-													<span className="text-gray-400">Expires At:</span>
-													<span className="text-white">{new Date(userData.exp * 1000).toLocaleString()}</span>
-												</div>
-											</div>
-										</CardContent>
-									</Card>
-								) : (
-									<Card className="bg-gray-950 border-gray-800 w-full overflow-x-hidden">
-										<CardHeader className="w-full overflow-x-hidden">
-											<CardTitle className="text-white">Waiting for Authentication</CardTitle>
-										</CardHeader>
-										<CardContent className="w-full overflow-x-hidden">
-											<p className="text-gray-400">Complete the login flow to see the authenticated user data here.</p>
-										</CardContent>
-									</Card>
-								)}
-
-								{token && (
-									<Card className="bg-gray-950 border-gray-800 w-full overflow-x-hidden">
-										<CardHeader className="w-full overflow-x-hidden">
-											<CardTitle className="text-white">JWT Token</CardTitle>
-										</CardHeader>
-										<CardContent className="space-y-4 w-full overflow-x-hidden">
-											<div className="bg-gray-800 p-2 sm:p-3 rounded-lg w-full overflow-x-hidden">
-												<p className="text-xs text-gray-300 break-all font-mono overflow-wrap-anywhere w-full">{token}</p>
-											</div>
-											<Button onClick={handleVerifyToken} className="w-full bg-gray-800 hover:bg-gray-700 text-white">
-												Verify Token
-											</Button>
-										</CardContent>
-									</Card>
-								)}
-							</div>
+							)}
 						</div>
 					</div>
 				</div>
 			</div>
-		</>
+		</div>
 	)
 }

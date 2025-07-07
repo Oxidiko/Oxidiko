@@ -1,6 +1,5 @@
 "use client"
 
-import Head from "next/head"
 import { useState, useEffect } from "react"
 import { AuthHandler } from "@/components/auth-handler"
 import { validateAPIKey } from "@/lib/api-validation"
@@ -96,74 +95,52 @@ export default function LoginPage() {
 
   if (isLoading) {
     return (
-      <>
-        <Head>
-          <title>oxidiko - login</title>
-        </Head>
-        <div className="min-h-screen bg-black flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-        </div>
-      </>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      </div>
     )
   }
 
   if (apiError) {
     return (
-      <>
-        <Head>
-          <title>oxidiko - login</title>
-        </Head>
-        <div className="min-h-screen bg-black text-white flex items-center justify-center">
-          <div className="text-center max-w-md mx-auto px-4">
-            <h1 className="text-2xl font-bold mb-4">Authentication Error</h1>
-            <Alert className="bg-red-900/20 border-red-800 mb-4">
-              <AlertDescription className="text-red-400">{apiError}</AlertDescription>
-            </Alert>
-            <div className="text-gray-400 text-sm space-y-2">
-              <p>Required parameters must be sent via <code>postMessage</code> from the parent website:</p>
-              <ul className="list-disc list-inside text-left">
-                <li>
-                  <code>api_key</code> - Your valid API key
-                </li>
-                <li>
-                  <code>fields</code> - Comma-separated list of fields to collect
-                </li>
-                <li>
-                  <code>redirect</code> - URL to redirect after authentication
-                </li>
-              </ul>
-              <p className="mt-4">
-                Visit our API documentation for more information or contact support if you need assistance.
-              </p>
-            </div>
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto px-4">
+          <h1 className="text-2xl font-bold mb-4">Authentication Error</h1>
+          <Alert className="bg-red-900/20 border-red-800 mb-4">
+            <AlertDescription className="text-red-400">{apiError}</AlertDescription>
+          </Alert>
+          <div className="text-gray-400 text-sm space-y-2">
+            <p>Required parameters must be sent via <code>postMessage</code> from the parent website:</p>
+            <ul className="list-disc list-inside text-left">
+              <li>
+                <code>api_key</code> - Your valid API key
+              </li>
+              <li>
+                <code>fields</code> - Comma-separated list of fields to collect
+              </li>
+              <li>
+                <code>redirect</code> - URL to redirect after authentication
+              </li>
+            </ul>
+            <p className="mt-4">
+              Visit our API documentation for more information or contact support if you need assistance.
+            </p>
           </div>
         </div>
-      </>
+      </div>
     )
   }
 
   if (!isAuthFlow) {
     return (
-      <>
-        <Head>
-          <title>oxidiko - login</title>
-        </Head>
-        <div className="min-h-screen bg-black text-white flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Waiting for Authentication Request</h1>
-            <p className="text-gray-400">This page is waiting for a secure authentication request from the parent website.</p>
-          </div>
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Waiting for Authentication Request</h1>
+          <p className="text-gray-400">This page is waiting for a secure authentication request from the parent website.</p>
         </div>
-      </>
+      </div>
     )
   }
 
-  return (
-    <>
-      <Head>
-        <title>oxidiko - login</title>
-      </Head>
-      <AuthHandler apiKey={apiKey} fields={fields} />
-    </>
-  )
+  return <AuthHandler apiKey={apiKey} fields={fields} />
 }
