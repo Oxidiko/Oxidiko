@@ -946,7 +946,10 @@ export function Dashboard() {
 
         {/* Backup Warning Dialog */}
         <Dialog open={showBackupWarning} onOpenChange={() => {}}>
-          <DialogContent className="bg-gray-950 border-red-800 max-w-2xl">
+          <DialogContent
+            className="bg-gray-950 border-red-800 max-w-2xl"
+            style={{ width: '98vw', height: '98vh', maxWidth: '98vw', maxHeight: '98vh' }}
+          >
             <DialogHeader>
               <DialogTitle className="text-red-400 flex items-center gap-3 text-xl">
                 <Skull className="h-6 w-6" />BACK UP YOUR VAULT OR REGRET IT FOREVER
