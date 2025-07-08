@@ -66,6 +66,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
