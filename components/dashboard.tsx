@@ -57,6 +57,7 @@ import {
 } from "@/lib/vault-storage"
 import { getCountryNames, getNationalityNames } from "@/lib/countries"
 import { authenticatePasskey, isWebAuthnSupported } from "@/lib/webauthn-utils"
+import { Analytics } from "@vercel/analytics/next"
 
 interface Profile {
   name: string
@@ -1122,6 +1123,8 @@ export function Dashboard() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <Analytics />
       </div>
     </div>
   )
