@@ -2,6 +2,8 @@
 
 > "No data leaves your browser unless you explicitly say so. No shady tracking. Not even a cookie. Your privacy is probably safer here than in your mom’s kitchen."
 
+# ⚠️ For support/updates/suggestions, join my Telegram: http://t.me/oxidiko
+
 ## What is Oxidiko? 🤖🔒
 
 Oxidiko is a prototype authentication platform built by a 17-year-old (me!) and a very overworked AI. It’s a privacy-first, paranoia-friendly, Gen-Z-coded experiment in making authentication suck less. Think of it as your digital vault, but without the corporate surveillance, data leaks, or weird cookie popups.
