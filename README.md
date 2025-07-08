@@ -14,6 +14,9 @@ Oxidiko is a prototype authentication platform built by a 17-year-old (me!) and 
 - 🚫 If you don’t click a button to send data, it stays on your device. Period.
 - 👀 No Google Analytics, no Facebook pixels, no cookies, no tracking. Not even a single crumb.
 
+## Demo
+![](/video/oxidiko_demo.mp4)
+
 ## How Does It Work? 🛠️
 
 ### 1. Profile Setup
