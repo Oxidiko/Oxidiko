@@ -2,7 +2,7 @@
 
 > "No data leaves your browser unless you explicitly say so. No shady tracking. Not even a cookie. Your privacy is probably safer here than in your mom’s kitchen."
 
-# ⚠️ For support/updates/suggestions, join my Telegram: http://t.me/oxidiko
+### ⚠️ For support/updates/suggestions, join my Telegram: http://t.me/oxidiko
 
 ## What is Oxidiko? 🤖🔒
 
@@ -15,7 +15,7 @@ Oxidiko is a prototype authentication platform built by a 17-year-old (me!) and 
 - 👀 No Google Analytics, no Facebook pixels, no cookies, no tracking. Not even a single crumb.
 
 ## Demo
-![](/video/oxidiko_demo.mp4)
+[Watch it here](/video/oxidiko_demo.mp4)
 
 ## How Does It Work? 🛠️
 
