@@ -35,10 +35,10 @@ Oxidiko is a prototype authentication platform built by a 17-year-old (me!) and 
 - See `LICENSE` for the full legalese.
 
 ## Try It Now 🚀
-- Make your own vault at [https://oxidiko.vercel.app/](https://oxidiko.vercel.app/)
+- Make your own vault at [https://oxidiko.com](https://oxidiko.com)
 - Then log in and test it at [https://v0-store-rho-hazel.vercel.app/](https://v0-store-rho-hazel.vercel.app/)
 - If it breaks, congrats, you found a bug! (Or a feature?)
-- Want to read more? Check out the docs: [https://oxidiko.vercel.app/docs](https://oxidiko.vercel.app/docs) 📚
+- Want to read more? Check out the docs: [https://oxidiko.com/docs](https://oxidiko.com/docs) 📚
 
 ## Why Donate? 💸
 - This is a prototype, built by a 17-year-old and an AI, not a VC-backed megacorp.
