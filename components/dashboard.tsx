@@ -965,7 +965,6 @@ export function Dashboard() {
                   <p>• Lose your phone? → bye-bye 👋</p>
                   <p>• Uninstall your browser? → bye-bye 👋</p>
                   <p>• Clear your site cache like a genius? → bye-bye 👋</p>
-                  <p>• Someone steals it because you didn't back it up? → bye-bye 👋</p>
                 </div>
 
                 <p className="text-yellow-300 font-medium">
