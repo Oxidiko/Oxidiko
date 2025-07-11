@@ -948,7 +948,7 @@ export function Dashboard() {
         {/* Backup Warning Dialog */}
         <Dialog open={showBackupWarning} onOpenChange={() => {}}>
           <DialogContent
-            className="bg-gray-950 border-red-800 max-w-2xl"
+            className="bg-gray-950 border-red-800 max-w-2xl overflow-y-auto"
             style={{ width: '98vw', height: '98vh', maxWidth: '98vw', maxHeight: '98vh' }}
           >
             <DialogHeader>
