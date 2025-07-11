@@ -949,7 +949,7 @@ export function Dashboard() {
         <Dialog open={showBackupWarning} onOpenChange={() => {}}>
           <DialogContent
             className="bg-gray-950 border-red-800 max-w-2xl overflow-y-auto"
-            style={{ width: '95vw', height: '95vh', maxWidth: '95vw', maxHeight: '95vh' }}
+            style={{ width: '98vw', height: '90vh', maxWidth: '98vw', maxHeight: '90vh' }}
           >
             <DialogHeader>
               <DialogTitle className="text-red-400 flex items-center gap-3 text-xl">
