@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import argon2 from "argon2"
+import jwt from "jsonwebtoken"
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,7 +17,16 @@ export async function POST(req: NextRequest) {
     if (!isValid) {
       return NextResponse.json({ success: false, error: "Invalid username or password" }, { status: 401 })
     }
-    return NextResponse.json({ success: true })
+    // Issue JWT with admin role
+    const payload = {
+      username,
+      role: "admin",
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 8 // 8 hours
+    }
+    const secret = process.env.JWT_SECRET || "dev_secret"
+    const token = jwt.sign(payload, secret)
+    return NextResponse.json({ success: true, token })
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message || "Authentication failed" }, { status: 500 })
   }

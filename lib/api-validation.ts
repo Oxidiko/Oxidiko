@@ -116,19 +116,19 @@ export const updateAPIKeyStatus = async (apiKey: string, subscriptionId?: string
 // Admin functions for managing API keys
 
 // Get API key statistics
-export const getAPIKeyStats = async (): Promise<{
+export const getAPIKeyStats = async (token?: string): Promise<{
   total: number
   byPlan: Record<string, number>
   active: number
   inactive: number
 }> => {
   try {
-    const response = await fetch("/api/admin/stats")
-
+    const response = await fetch("/api/admin/stats", {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined
+    })
     if (!response.ok) {
       throw new Error("Failed to fetch API key stats")
     }
-
     const result = await response.json()
     return result
   } catch (error) {
@@ -138,14 +138,14 @@ export const getAPIKeyStats = async (): Promise<{
 }
 
 // Get all API keys for admin
-export const getAllAPIKeys = async (): Promise<APIKeyData[]> => {
+export const getAllAPIKeys = async (token?: string): Promise<APIKeyData[]> => {
   try {
-    const response = await fetch("/api/admin/keys")
-
+    const response = await fetch("/api/admin/keys", {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined
+    })
     if (!response.ok) {
       throw new Error("Failed to fetch API keys")
     }
-
     const result = await response.json()
     return result.data || []
   } catch (error) {

@@ -100,6 +100,9 @@ export default function AdminDashboardPage() {
         throw new Error(data.error || "Authentication failed")
       }
 
+      if (data.token) {
+        localStorage.setItem("admin_jwt", data.token)
+      }
       setIsAuthenticated(true)
       await loadDashboardData()
     } catch (err: any) {
@@ -116,8 +119,11 @@ export default function AdminDashboardPage() {
   const loadDashboardData = async () => {
     try {
       setError("")
-      const [statsData, keysData] = await Promise.all([getAPIKeyStats(), getAllAPIKeys()])
-
+      const token = localStorage.getItem("admin_jwt")
+      const [statsData, keysData] = await Promise.all([
+        getAPIKeyStats(token),
+        getAllAPIKeys(token)
+      ])
       setStats(statsData)
       setApiKeys(keysData)
     } catch (err: any) {
