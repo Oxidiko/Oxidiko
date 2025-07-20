@@ -157,9 +157,13 @@ export const getAllAPIKeys = async (token?: string): Promise<APIKeyData[]> => {
 // Revoke (deactivate) an API key
 export const revokeAPIKey = async (apiKey: string): Promise<void> => {
   try {
+    const token = localStorage.getItem("admin_jwt")
     const response = await fetch("/api/admin/revoke", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
       body: JSON.stringify({ apiKey }),
     })
 
@@ -177,9 +181,13 @@ export const revokeAPIKey = async (apiKey: string): Promise<void> => {
 // Activate an API key
 export const activateAPIKey = async (apiKey: string): Promise<void> => {
   try {
+    const token = localStorage.getItem("admin_jwt")
     const response = await fetch("/api/admin/activate", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
       body: JSON.stringify({ apiKey }),
     })
 

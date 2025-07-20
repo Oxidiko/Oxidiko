@@ -1,10 +1,27 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
+import { verifyJWT } from "@/lib/jwt-utils"
 
 const sql = neon(process.env.DATABASE_URL!)
 
 export async function POST(request: NextRequest) {
   try {
+    // Check for Authorization header
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    const token = authHeader.replace("Bearer ", "").trim()
+    let payload
+    try {
+      payload = await verifyJWT(token)
+    } catch (err: any) {
+      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 })
+    }
+    if (!payload || payload.role !== "admin") {
+      return NextResponse.json({ error: "Admin access required" }, { status: 401 })
+    }
+
     const body = await request.json()
     const { apiKey } = body
 
