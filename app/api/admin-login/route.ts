@@ -19,10 +19,9 @@ export async function POST(req: NextRequest) {
     }
     // Issue JWT with admin role
     const payload = {
-      username,
       role: "admin",
       iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 8 // 8 hours
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 1 // 1 hour
     }
     const secret = process.env.JWT_SECRET || "dev_secret"
     const token = jwt.sign(payload, secret)
