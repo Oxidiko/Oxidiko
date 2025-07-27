@@ -293,12 +293,26 @@ export function VaultUnlock({ onUnlocked }: VaultUnlockProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <input
-                      type="file"
-                      accept="application/json"
-                      onChange={handleFileUpload}
-                      className="w-full bg-purple-900/30 border-purple-800/50 text-white rounded-md p-3"
-                    />
+                    <div className="flex items-center gap-4">
+                      <input
+                        id="vaultImportFile"
+                        type="file"
+                        accept="application/json"
+                        onChange={handleFileUpload}
+                        style={{ display: 'none' }}
+                      />
+                      <Button
+                        type="button"
+                        onClick={() => document.getElementById('vaultImportFile')?.click()}
+                        className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
+                      >
+                        <Upload className="h-4 w-4" />
+                        {importData ? "File Selected" : "Choose Vault File"}
+                      </Button>
+                      {importData && (
+                        <span className="text-gray-400 text-sm">File ready for import</span>
+                      )}
+                    </div>
                   </div>
 
                   <Button
