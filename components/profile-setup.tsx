@@ -65,7 +65,6 @@ export function ProfileSetup({ onVaultCreated }: ProfileSetupProps) {
   const [showPinInfo, setShowPinInfo] = useState(false)
   const [importData, setImportData] = useState("")
   const [showImportMode, setShowImportMode] = useState(false)
-  const [importError, setImportError] = useState("")
 
   const countries = getCountryNames()
   const nationalities = getNationalityNames()
@@ -158,31 +157,24 @@ export function ProfileSetup({ onVaultCreated }: ProfileSetupProps) {
     }
   }
 
-  const handleImportVaultFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) {
-      setImportError("Please select a vault JSON file")
+  const handleImportVault = async () => {
+    if (!importData.trim()) {
+      setError("Please paste your vault data")
       return
     }
-    setImportError("")
+
+    setError("")
     setIsLoading(true)
+
     try {
-      const reader = new FileReader()
-      reader.onload = async (event) => {
-        try {
-          const vaultJson = event.target?.result as string
-          await importVaultData(vaultJson)
-          setImportError("")
-          window.location.reload()
-        } catch (err: any) {
-          setImportError(err.message || "Failed to import vault data")
-        } finally {
-          setIsLoading(false)
-        }
-      }
-      reader.readAsText(file)
+      await importVaultData(importData)
+      setError("")
+      setImportData("")
+      // Refresh the page to properly load the imported vault
+      window.location.reload()
     } catch (err: any) {
-      setImportError(err.message || "Failed to import vault data")
+      setError(err.message || "Failed to import vault data")
+    } finally {
       setIsLoading(false)
     }
   }
