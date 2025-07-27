@@ -967,7 +967,7 @@ export function Dashboard() {
                 BACK UP YOUR VAULT OR REGRET IT FOREVER
               </div>
             </div>
-            <div style={{ padding: 24, lineHeight: 1.6 }}>
+            <div style={{ padding: 24, lineHeight: 1.6, maxHeight: 'calc(95vh - 80px)', overflowY: 'auto' }}>
               <p style={{ fontWeight: 600, marginBottom: 20, color: '#fff' }}>
                 Listen up: your vault is your life. If you don't save it somewhere safe, don't come crying when it's gone.
               </p>
