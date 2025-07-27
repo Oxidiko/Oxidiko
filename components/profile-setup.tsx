@@ -159,7 +159,7 @@ export function ProfileSetup({ onVaultCreated }: ProfileSetupProps) {
 
   const handleImportVault = async () => {
     if (!importData.trim()) {
-      setError("Please paste your vault data")
+      setError("Please select a vault backup file")
       return
     }
 
@@ -170,12 +170,29 @@ export function ProfileSetup({ onVaultCreated }: ProfileSetupProps) {
       await importVaultData(importData)
       setError("")
       setImportData("")
-      // Refresh the page to properly load the imported vault
       window.location.reload()
     } catch (err: any) {
       setError(err.message || "Failed to import vault data")
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // Handle file upload for vault import
+  const handleFileUploadImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        try {
+          const text = event.target?.result as string
+          setImportData(text)
+          setError("")
+        } catch (err: any) {
+          setError("Invalid file format. Please upload a valid vault backup JSON file.")
+        }
+      }
+      reader.readAsText(file)
     }
   }
 
@@ -238,14 +255,14 @@ export function ProfileSetup({ onVaultCreated }: ProfileSetupProps) {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="importData" className="text-gray-300">
-                    Vault Backup Data
+                    Vault Backup File
                   </Label>
-                  <textarea
+                  <input
                     id="importData"
-                    value={importData}
-                    onChange={(e) => setImportData(e.target.value)}
-                    placeholder="Paste your vault backup data here..."
-                    className="w-full h-40 bg-purple-900/30 border-purple-800/50 text-white placeholder-gray-400 rounded-md p-3 resize-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                    type="file"
+                    accept="application/json"
+                    onChange={handleFileUploadImport}
+                    className="w-full bg-purple-900/30 border-purple-800/50 text-white rounded-md p-3"
                   />
                 </div>
 
