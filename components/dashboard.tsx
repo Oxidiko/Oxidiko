@@ -953,6 +953,7 @@ export function Dashboard() {
               background: 'linear-gradient(145deg, #0f172a, #020617)',
               width: '90vw',
               maxWidth: '800px',
+              height: '95vh',
               padding: 0,
               boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
               borderRadius: '16px',
@@ -967,7 +968,7 @@ export function Dashboard() {
               </div>
             </div>
             <div style={{ padding: 24, lineHeight: 1.6 }}>
-              <p style={{ fontWeight: 600, marginBottom: 20 }}>
+              <p style={{ fontWeight: 600, marginBottom: 20, color: '#fff' }}>
                 Listen up: your vault is your life. If you don't save it somewhere safe, don't come crying when it's gone.
               </p>
               <ul style={{ margin: '20px 0', paddingLeft: 20, listStyle: 'none' }}>
