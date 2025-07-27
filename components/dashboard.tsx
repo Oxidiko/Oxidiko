@@ -945,65 +945,98 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Backup Warning Dialog */}
+        {/* Backup Warning Dialog - Custom Styled */}
         <Dialog open={showBackupWarning} onOpenChange={() => {}}>
           <DialogContent
-            className="bg-gray-950 border-red-800 max-w-2xl overflow-y-auto"
-            style={{ width: '98vw', height: '90vh', maxWidth: '98vw', maxHeight: '90vh' }}
+            className="overflow-y-auto border border-[var(--border-dark,#1e293b)] rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]"
+            style={{
+              background: 'linear-gradient(145deg, #0f172a, #020617)',
+              width: '90vw',
+              maxWidth: '800px',
+              padding: 0,
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+              borderRadius: '16px',
+              border: '1px solid #1e293b',
+              overflow: 'hidden',
+            }}
           >
-            <DialogHeader>
-              <DialogTitle className="text-red-400 flex items-center gap-3 text-xl">
-                <Skull className="h-6 w-6" />BACK UP YOUR VAULT OR REGRET IT FOREVER
-              </DialogTitle>
-              <DialogDescription className="text-gray-300 text-base leading-relaxed space-y-4 mt-4">
-                <p className="font-semibold">
-                  Listen up: your vault is your life. If you don't save it somewhere safe, don't come crying when it's
-                  gone.
-                </p>
-
-                <div className="space-y-2 text-red-300">
-                  <p>• Lose your phone? → bye-bye 👋</p>
-                  <p>• Uninstall your browser? → bye-bye 👋</p>
-                  <p>• Clear your site cache like a genius? → bye-bye 👋</p>
-                </div>
-
-                <p className="text-yellow-300 font-medium">
-                  We're not magicians. If you lose it, we can't pull it out of thin air for you. Oxidiko is serverless: all your data stays on your phone. This is what makes it secure and private, but it also means you need to take responsibility for your own data.
-                </p>
-
-                <p className="text-blue-300">
-                  Oh, and your oxidiko_id? Yeah, that's not just some random string of gibberish. Save that too.
-                  Somewhere safe. Somewhere you can actually find it when you need it. It will help you recover your
-                  account on some websites if you have lost your wallet.
-                </p>
-
-                <p className="text-red-400 font-bold text-lg">Stop living on the edge. Back it up. Now.</p>
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="flex justify-center pt-4">
-              <Button
-                onClick={handleForceBackupDownload}
-                disabled={isDownloadingBackup}
-                className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 text-lg font-semibold"
-              >
-                {isDownloadingBackup ? (
-                  <>
-                    <Download className="h-5 w-5 mr-2 animate-pulse" />
-                    Downloading Backup...
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-5 w-5 mr-2" />
-                    Download My Vault Backup
-                  </>
-                )}
-              </Button>
+            <div style={{ padding: 24, borderBottom: '1px solid #1e293b' }}>
+              <div className="flex items-center gap-3" style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ef4444', margin: 0 }}>
+                <Skull className="h-7 w-7" style={{ color: '#ef4444' }} />
+                BACK UP YOUR VAULT OR REGRET IT FOREVER
+              </div>
             </div>
-
-            <div className="flex items-center justify-center gap-2 text-gray-500 text-sm mt-4">
-              <AlertTriangle className="h-4 w-4" />
-              <span>This dialog will only close after you download your backup</span>
+            <div style={{ padding: 24, lineHeight: 1.6 }}>
+              <p style={{ fontWeight: 600, marginBottom: 20 }}>
+                Listen up: your vault is your life. If you don't save it somewhere safe, don't come crying when it's gone.
+              </p>
+              <ul style={{ margin: '20px 0', paddingLeft: 20, listStyle: 'none' }}>
+                <li style={{ marginBottom: 8, color: '#ef4444', position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: -20, color: '#ef4444' }}>•</span>
+                  Lose your phone? → bye-bye 👋
+                </li>
+                <li style={{ marginBottom: 8, color: '#ef4444', position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: -20, color: '#ef4444' }}>•</span>
+                  Uninstall your browser? → bye-bye 👋
+                </li>
+                <li style={{ marginBottom: 8, color: '#ef4444', position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: -20, color: '#ef4444' }}>•</span>
+                  Clear your site cache like a genius? → bye-bye 👋
+                </li>
+              </ul>
+              <div style={{ color: '#f59e0b', fontWeight: 500, margin: '20px 0', padding: 16, background: 'rgba(245,158,11,0.1)', border: '1px solid #f59e0b', borderRadius: 8 }}>
+                We're not magicians. If you lose it, we can't pull it out of thin air for you. Oxidiko is serverless: all your data stays on your phone. This is what makes it secure and private, but it also means you need to take responsibility for your own data.
+              </div>
+              <div style={{ color: '#3b82f6', margin: '20px 0', padding: 16, background: 'rgba(59,130,246,0.1)', border: '1px solid #3b82f6', borderRadius: 8 }}>
+                Oh, and your oxidiko_id? Yeah, that's not just some random string of gibberish. Save that too. Somewhere safe. Somewhere you can actually find it when you need it. It will help you recover your account on some websites if you have lost your wallet.
+              </div>
+              <p style={{ color: '#ef4444', fontWeight: 700, fontSize: '1.25rem', textAlign: 'center', margin: '24px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Stop living on the edge. Back it up. Now.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'center', margin: '32px 0' }}>
+                <Button
+                  onClick={handleForceBackupDownload}
+                  disabled={isDownloadingBackup}
+                  className="flex items-center gap-2"
+                  style={{
+                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '14px 32px',
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    borderRadius: 8,
+                    cursor: isDownloadingBackup ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 6px rgba(239,68,68,0.2)',
+                    transition: 'all 0.3s ease',
+                    opacity: isDownloadingBackup ? 0.7 : 1,
+                  }}
+                >
+                  {isDownloadingBackup ? (
+                    <>
+                      <Download className="h-5 w-5 mr-2 animate-pulse" style={{ animation: 'pulse 1.5s infinite' }} />
+                      Downloading Backup...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-5 w-5 mr-2" />
+                      Download My Vault Backup
+                    </>
+                  )}
+                </Button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#64748b', fontSize: '0.875rem', marginTop: 16 }}>
+                <AlertTriangle className="h-4 w-4" />
+                <span>This dialog will only close after you download your backup</span>
+              </div>
+              {/* Pulse animation for download icon */}
+              <style>{`
+                @keyframes pulse {
+                  0% { opacity: 1; }
+                  50% { opacity: 0.5; }
+                  100% { opacity: 1; }
+                }
+              `}</style>
             </div>
           </DialogContent>
         </Dialog>
