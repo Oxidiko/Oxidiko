@@ -28,7 +28,7 @@ export function VaultUnlock({ onUnlocked }: VaultUnlockProps) {
   const [pin, setPin] = useState("")
   const [showPin, setShowPin] = useState(false)
   const [activeTab, setActiveTab] = useState("passkey")
-  const [importData, setImportData] = useState("")
+  const [importError, setImportError] = useState("")
 
   useEffect(() => {
     const initializeUnlock = async () => {
@@ -99,25 +99,33 @@ export function VaultUnlock({ onUnlocked }: VaultUnlockProps) {
     }
   }
 
-  const handleImportVault = async () => {
-    if (!importData.trim()) {
-      setError("Please paste your vault data")
+  const handleImportVaultFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) {
+      setImportError("Please select a vault JSON file")
       return
     }
-
-    setError("")
+    setImportError("")
     setIsLoading(true)
-
     try {
-      await importVaultData(importData)
-      setError("")
-      // Switch to PIN tab after successful import
-      setActiveTab("pin")
-      setImportData("")
-      alert("Vault imported successfully! You can now unlock with your PIN.")
+      const reader = new FileReader()
+      reader.onload = async (event) => {
+        try {
+          const vaultJson = event.target?.result as string
+          await importVaultData(vaultJson)
+          setImportError("")
+          // Switch to PIN tab after successful import
+          setActiveTab("pin")
+          alert("Vault imported successfully! You can now unlock with your PIN.")
+        } catch (err: any) {
+          setImportError(err.message || "Failed to import vault data")
+        } finally {
+          setIsLoading(false)
+        }
+      }
+      reader.readAsText(file)
     } catch (err: any) {
-      setError(err.message || "Failed to import vault data")
-    } finally {
+      setImportError(err.message || "Failed to import vault data")
       setIsLoading(false)
     }
   }
@@ -162,49 +170,43 @@ export function VaultUnlock({ onUnlocked }: VaultUnlockProps) {
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-3 bg-gray-800">
                   <TabsTrigger
-                    value="passkey"
-                    disabled={!webAuthnSupported || !credId}
-                    className="data-[state=active]:bg-blue-600"
-                  >
-                    <Fingerprint className="h-4 w-4 mr-1" />
-                    Passkey
-                  </TabsTrigger>
-                  <TabsTrigger value="pin" className="data-[state=active]:bg-orange-600">
-                    <Lock className="h-4 w-4 mr-1" />
-                    PIN
-                  </TabsTrigger>
-                  <TabsTrigger value="import" className="data-[state=active]:bg-purple-600">
-                    <Upload className="h-4 w-4 mr-1" />
-                    Import
-                  </TabsTrigger>
-                </TabsList>
+  return (
+    <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="container mx-auto px-4">
+        <div className="max-w-md mx-auto">
+          <div className="text-center mb-8">
+            <Shield className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+            <h1 className="text-3xl font-bold mb-2">Welcome Back</h1>
+            <p className="text-gray-400">Unlock your Oxidiko Web Vault</p>
+          </div>
 
-                <TabsContent value="passkey" className="space-y-4">
-                  <div className="text-center">
-                    <p className="text-gray-400 mb-4">Use your passkey to unlock your vault</p>
-
-                    <div className="bg-gray-800 p-4 rounded-lg mb-4">
-                      <Fingerprint className="h-12 w-12 text-blue-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-300">
-                        Touch your fingerprint sensor, use Face ID, or insert your security key
-                      </p>
-                    </div>
-                  </div>
-
-                  <Button
-                    onClick={handlePasskeyUnlock}
-                    disabled={isLoading || !credId}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Fingerprint className="h-4 w-4 mr-2 animate-pulse" />
-                        Authenticating...
-                      </>
-                    ) : (
-                      <>
-                        <Fingerprint className="h-4 w-4 mr-2" />
-                        Unlock with Passkey
+          <Card className="bg-gray-950 border-gray-800">
+            <CardHeader>
+              <CardTitle className="text-white text-center flex items-center justify-center gap-2">
+                <Lock className="h-6 w-6" />
+                Vault Locked
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* ...existing code... */}
+              <div className="mt-6">
+                <label className="block text-gray-300 mb-2">Import Vault from JSON file:</label>
+                <input
+                  type="file"
+                  accept="application/json"
+                  onChange={handleImportVaultFile}
+                  className="block w-full text-gray-200 bg-gray-800 border border-gray-700 rounded p-2"
+                  disabled={isLoading}
+                />
+                {importError && <p className="text-red-400 mt-2">{importError}</p>}
+              </div>
+              {/* ...existing code... */}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
                       </>
                     )}
                   </Button>
