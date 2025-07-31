@@ -14,7 +14,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#0c1221" />
+        <link rel="icon" type="image/png" href="/oxidiko.png" />
+        <title>Oxidiko</title>
+      </head>
+      <body>
+        {children}
+        <script dangerouslySetInnerHTML={{
+          __html: `if ('serviceWorker' in navigator) { window.addEventListener('load', function() { navigator.serviceWorker.register('/service-worker.js'); }); }`
+        }} />
+      </body>
     </html>
   )
 }
