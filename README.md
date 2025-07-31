@@ -12,7 +12,7 @@ Oxidiko is a prototype authentication platform built by a 17-year-old (me!) and 
 - 🗝️ All your sensitive stuff (profile, vault, etc.) is encrypted and stored *locally* in your browser using IndexedDB.
 - 🔑 Unlock your vault with a passkey (WebAuthn) + a PIN. No passwords, no phishy emails, no drama.
 - 🚫 If you don’t click a button to send data, it stays on your device. Period.
-- 👀 No Google Analytics, no Facebook pixels, no cookies, no tracking. Not even a single crumb.
+- 👀 No Google Analytics, no Facebook pixels, no cookies, no tracking. Not even a single crumb. (Only Vercel Analytics to see the number of people opening it (traffic). Because if Oxidiko ever becomes something, I might need to upgrademmy plan)
 
 ## Demo
 [Watch it here](/video/oxidiko_demo.mp4)
@@ -27,8 +27,8 @@ Oxidiko is a prototype authentication platform built by a 17-year-old (me!) and 
 
 ### 2. Paranoia Mode (Default) 🕵️‍♂️
 - No data leaves your browser unless you *explicitly* export it.
-- No cookies, no localStorage, no sessionStorage, no tracking. (Sidebar state is the only thing that gets a cookie, and you can nuke it.)
-- If you’re not sure, just open DevTools and check. We dare you.
+- No cookies, no localStorage, no sessionStorage, no tracking.
+- If you’re not sure, just open DevTools and check. I dare you.
 
 ### 3. Open Source, But... 📜
 - Licensed under the Business Source License 1.1. You can use, copy, and modify for personal/educational/internal use, but you *can’t* resell, rehost, or make your own SaaS with it. (Sorry, not sorry.)
@@ -60,10 +60,10 @@ Oxidiko is a prototype authentication platform built by a 17-year-old (me!) and 
 > Because you should be. The internet is a scary place.
 
 **Q: Can I use this for my startup?**
-> Not unless you want a lawyer in your inbox. Read the license. But you can check out the API
+> Not unless you want a lawyer in your inbox. Read the license. But you can check out the API.
 
 ---
 
 Made with caffeine ☕, memes 🐸, and a healthy dose of skepticism.
 
-*Oxidiko: Because your privacy deserves more than a shrug emoji.* 🤷‍♂️
+*Oxidiko: Your data, your responsibility*

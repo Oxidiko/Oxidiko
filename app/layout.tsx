@@ -16,7 +16,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#0c1221" />
+        <meta name="theme-color" content="#000000" />
         <link rel="icon" type="image/png" href="/oxidiko.png" />
         <title>Oxidiko</title>
       </head>
