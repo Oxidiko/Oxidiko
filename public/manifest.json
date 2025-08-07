@@ -1,0 +1,21 @@
+{
+  "name": "Oxidiko Web Vault",
+  "short_name": "Oxidiko",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "description": "Private, secure, passwordless authentication vault.",
+  "icons": [
+    {
+      "src": "oxidiko.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "oxidiko.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
