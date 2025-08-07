@@ -378,11 +378,3 @@ export function SiteAccessHistory({ isOpen, onClose }: SiteAccessHistoryProps) {
     </Dialog>
   )
 }
-              ))}
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
