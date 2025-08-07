@@ -141,75 +141,26 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
       }
 
       const recId = await getStoredRecId()
-
       const allowedData: any = {
         sub: oxidikoId,
         oxidiko_id: oxidikoId,
         rec_id: recId,
       }
 
-      // Handle 'none' field - return only ID
-      if (requestedFields.includes("none")) {
-        // Encrypt with site key (even if only ID is shared)
-        const encryptedData = await encryptDataForSite(allowedData, window.location.origin)
-        await recordSiteAccess(window.location.origin, ["none"], encryptedData, redirectUrl)
-
-        // --- CLIENT CALLS API ROUTE INSTEAD OF generateJWT ---
-        const response = await fetch("/api/generate-jwt", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ encrypted: encryptedData.encrypted, iv: encryptedData.iv }),
-        })
-        const result = await response.json()
-        if (!response.ok) throw new Error(result.error || "Failed to generate authentication token")
-        const token = result.token
-        // --- END ---
-
-        // Increment API quota if API key is provided
-        if (apiKey) {
-          try {
-            await incrementQuota(apiKey)
-          } catch (err) {
-            console.error("Failed to increment quota:", err)
-          }
-        }
-
-        if (window.opener) {
-          const parentOrigin = redirectUrl ? new URL(redirectUrl).origin : "*"
-          window.opener.postMessage(
-            {
-              type: "OXID_AUTH_SUCCESS",
-              token: token,
-            },
-            parentOrigin,
-          )
-          window.close()
-        } else {
-          const callbackUrl = `${redirectUrl}?token=${token}`
-          window.location.href = callbackUrl
-        }
-        return
-      }
-
-      // Check for non-existent fields and collect errors
-      const missingFields: string[] = []
-
-      requestedFields.forEach((field) => {
-        if (field !== "none") {
-          if (!profile[field]) {
-            missingFields.push(field)
-          } else {
+      // Collect requested fields
+      if (!requestedFields.includes("none")) {
+        requestedFields.forEach((field) => {
+          if (field !== "none" && profile[field]) {
             allowedData[field] = profile[field]
           }
-        }
-      })
-
-      if (!allowedData.sub) {
-        allowedData.sub = oxidikoId
+        })
       }
 
       // Encrypt allowedData with site key
       const encryptedData = await encryptDataForSite(allowedData, window.location.origin)
+
+      // Record site access in vault
+      await recordSiteAccess(window.location.origin, requestedFields, encryptedData, redirectUrl)
 
       // --- CLIENT CALLS API ROUTE INSTEAD OF generateJWT ---
       const response = await fetch("/api/generate-jwt", {
@@ -222,9 +173,6 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
       const token = result.token
       // --- END ---
 
-      // Record site access in vault
-      await recordSiteAccess(window.location.origin, requestedFields, encryptedData, redirectUrl)
-
       // Increment API quota
       if (apiKey) {
         try {
@@ -234,6 +182,7 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
         }
       }
 
+      // Only send the JWT token to the site
       if (window.opener) {
         const parentOrigin = redirectUrl ? new URL(redirectUrl).origin : "*"
         window.opener.postMessage(
