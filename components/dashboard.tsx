@@ -34,7 +34,7 @@ import {
 import { getCountryNames, getNationalityNames } from "@/lib/countries"
 import { authenticatePasskey, isWebAuthnSupported } from "@/lib/webauthn-utils"
 import { Analytics } from "@vercel/analytics/next"
-import { useRouter } from "next/navigation"
+import { SiteAccessHistory } from "@/components/site-access-history"
 
 interface Profile {
   name: string
@@ -71,6 +71,7 @@ export function Dashboard() {
   const [showBackupWarning, setShowBackupWarning] = useState(false)
   const [isDownloadingBackup, setIsDownloadingBackup] = useState(false)
   const [recentSiteAccesses, setRecentSiteAccesses] = useState<any[]>([])
+  const [showSiteHistory, setShowSiteHistory] = useState(false)
 
   const countries = getCountryNames()
   const nationalities = getNationalityNames()
@@ -114,8 +115,6 @@ export function Dashboard() {
     }
     initializeAuth()
   }, [])
-
-  const router = useRouter()
 
   const handleLockVault = () => {
     lockVault()
@@ -291,7 +290,7 @@ export function Dashboard() {
   }
 
   const handleViewSiteHistory = () => {
-    router.push("/site-access-history")
+    setShowSiteHistory(true)
   }
 
   const formatDate = (timestamp: number) => {
@@ -989,6 +988,11 @@ export function Dashboard() {
                             </span>
                           )}
                         </div>
+                        {access.encrypted_data && (
+                          <div className="mt-2 text-xs text-green-400">
+                            ✓ Data encrypted before transmission
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1010,6 +1014,12 @@ export function Dashboard() {
             )}
           </div>
         </div>
+
+        {/* Site Access History Popup */}
+        <SiteAccessHistory 
+          isOpen={showSiteHistory} 
+          onClose={() => setShowSiteHistory(false)} 
+        />
 
         {/* Backup Warning Dialog - Custom Styled */}
         <Dialog open={showBackupWarning} onOpenChange={() => {}}>

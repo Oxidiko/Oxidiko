@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import jwt from "jsonwebtoken"
-import crypto from "crypto"
 
 // Fetch RSA keys from environment variables (single-line, \n replaced with real newlines)
 const RSA_PRIVATE_KEY = (process.env.RSA_PRIVATE_KEY || "").replace(/\\n/g, "\n")
@@ -25,13 +24,6 @@ export async function POST(req: NextRequest) {
     // Validate required claims
     if (!payload.sub) {
       return NextResponse.json({ error: "Subject (sub) is required" }, { status: 400 })
-    }
-    
-    // If encrypted data is present, include it in the JWT
-    if (body.encrypted_data && body.encryption_iv) {
-      payload.encrypted_data = body.encrypted_data
-      payload.encryption_iv = body.encryption_iv
-      payload.encryption_version = body.encryption_version || "1.0"
     }
     
     // Sign JWT using jsonwebtoken (Node.js only)

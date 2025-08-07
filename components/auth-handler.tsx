@@ -151,8 +151,8 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
 
       // Handle 'none' field - return only ID
       if (requestedFields.includes("none")) {
-        // Record site access
-        await recordSiteAccess(siteOrigin, requestedFields, redirectUrl)
+        // Record site access with empty encrypted data
+        await recordSiteAccess(siteOrigin, requestedFields, { encrypted: "", iv: "" }, redirectUrl)
 
         // --- CLIENT CALLS API ROUTE INSTEAD OF generateJWT ---
         const response = await fetch("/api/generate-jwt", {
@@ -206,19 +206,19 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
       })
 
       // Encrypt the data for this site
-      const { encrypted, iv } = await encryptDataForSite(dataToEncrypt, siteOrigin)
+      const encryptedData = await encryptDataForSite(dataToEncrypt, siteOrigin)
 
       // Add encrypted data to JWT payload
-      allowedData.encrypted_data = encrypted
-      allowedData.encryption_iv = iv
+      allowedData.encrypted_data = encryptedData.encrypted
+      allowedData.encryption_iv = encryptedData.iv
       allowedData.encryption_version = "1.0"
 
       if (!allowedData.sub) {
         allowedData.sub = oxidikoId
       }
 
-      // Record site access
-      await recordSiteAccess(siteOrigin, requestedFields, redirectUrl)
+      // Record site access with encrypted data
+      await recordSiteAccess(siteOrigin, requestedFields, encryptedData, redirectUrl)
 
       // --- CLIENT CALLS API ROUTE INSTEAD OF generateJWT ---
       const response = await fetch("/api/generate-jwt", {
@@ -255,6 +255,7 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
         window.location.href = callbackUrl
       }
     } catch (err) {
+      console.error("Error in handleApprove:", err)
       if (window.opener) {
         const parentOrigin = redirectUrl ? new URL(redirectUrl).origin : "*"
         window.opener.postMessage(

@@ -479,8 +479,13 @@ export const encryptDataForSite = async (data: any, siteOrigin: string): Promise
   return encryptDataWithSiteKey(data, siteKey)
 }
 
-// Record site access
-export const recordSiteAccess = async (siteOrigin: string, fields: string[], redirectUrl?: string): Promise<void> => {
+// Record site access with encrypted data and site key
+export const recordSiteAccess = async (
+  siteOrigin: string, 
+  fields: string[], 
+  encryptedData: { encrypted: string; iv: string },
+  redirectUrl?: string
+): Promise<void> => {
   if (!currentMVK) {
     throw new Error("Vault is locked")
   }
@@ -493,8 +498,9 @@ export const recordSiteAccess = async (siteOrigin: string, fields: string[], red
       siteAccess[siteOrigin] = {
         first_access: Date.now(),
         access_count: 0,
-        accessed_fields: new Set(),
-        recent_accesses: []
+        accessed_fields: [],
+        recent_accesses: [],
+        site_url: siteOrigin
       }
     }
 
@@ -503,14 +509,19 @@ export const recordSiteAccess = async (siteOrigin: string, fields: string[], red
     siteRecord.last_access = Date.now()
     
     // Add new fields to accessed fields set
-    fields.forEach(field => siteRecord.accessed_fields.add(field))
-    siteRecord.accessed_fields = Array.from(new Set(siteRecord.accessed_fields))
+    fields.forEach(field => {
+      if (!siteRecord.accessed_fields.includes(field)) {
+        siteRecord.accessed_fields.push(field)
+      }
+    })
 
     // Add to recent accesses (keep last 10)
     siteRecord.recent_accesses.unshift({
       timestamp: Date.now(),
       fields: fields,
-      redirect_url: redirectUrl
+      redirect_url: redirectUrl,
+      encrypted_data: encryptedData.encrypted,
+      encryption_iv: encryptedData.iv
     })
     siteRecord.recent_accesses = siteRecord.recent_accesses.slice(0, 10)
 
