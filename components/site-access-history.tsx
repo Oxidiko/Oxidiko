@@ -292,14 +292,6 @@ export function SiteAccessHistory({ isOpen, onClose }: SiteAccessHistoryProps) {
               <DialogTitle className="text-2xl font-bold text-white">Site Access History</DialogTitle>
               <p className="text-gray-400">View all sites that have accessed your encrypted data</p>
             </div>
-            <Button
-              onClick={onClose}
-              size="sm"
-              variant="ghost"
-              className="text-gray-400 hover:text-white"
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
         </DialogHeader>
 
@@ -378,6 +370,14 @@ export function SiteAccessHistory({ isOpen, onClose }: SiteAccessHistoryProps) {
                     </Button>
                   </CardContent>
                 </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
               ))}
             </div>
           )}
