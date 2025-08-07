@@ -257,7 +257,6 @@ export function SiteAccessHistory({ isOpen, onClose }: SiteAccessHistoryProps) {
                         <span className="text-lg">{getFieldIcon(field)}</span>
                         <div>
                           <div className="text-white font-medium text-sm">{getFieldLabel(field)}</div>
-                          <div className="text-gray-400 text-xs">Encrypted before transmission</div>
                         </div>
                       </div>
                     )) || (
