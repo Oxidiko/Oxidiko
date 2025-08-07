@@ -157,14 +157,6 @@ export function SiteAccessHistory({ isOpen, onClose }: SiteAccessHistoryProps) {
                   <p className="text-gray-400 text-sm">{selectedSite}</p>
                 </div>
               </div>
-              <Button
-                onClick={onClose}
-                size="sm"
-                variant="ghost"
-                className="text-gray-400 hover:text-white"
-              >
-                <X className="h-4 w-4" />
-              </Button>
             </div>
           </DialogHeader>
 
