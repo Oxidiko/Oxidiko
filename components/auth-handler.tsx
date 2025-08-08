@@ -536,21 +536,3 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
     </div>
   )
 }
-            </Button>
-            <Button onClick={handleApprove} className="bg-green-600 hover:bg-green-700 text-white">
-              <Check className="h-4 w-4 mr-2" />
-              Allow
-            </Button>
-          </div>
-
-          <p className="text-xs text-gray-500 text-center mt-4">
-            Only the requested information will be shared. Your Oxidiko ID: {getCurrentOxidikoId()?.substring(0, 8)}...
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
-    </div>
-  )
-}
