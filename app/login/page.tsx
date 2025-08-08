@@ -32,6 +32,7 @@ export default function LoginPage() {
         origin = new URL(document.referrer).origin
       } catch {}
     }
+    // Do NOT fallback to window.location.origin (would always be oxidiko.com)
     setTrustedOrigin(origin)
 
     const handleMessage = async (event: MessageEvent) => {

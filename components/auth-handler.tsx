@@ -72,7 +72,7 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
         }
       }
 
-      // Detect the requesting site origin (siteUrl)
+      // Always get the *real* parent/opener origin for siteUrl
       let detectedSiteUrl = ""
       try {
         if (window.opener && window.opener.location && window.opener.location.origin) {
@@ -89,10 +89,7 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
           detectedSiteUrl = new URL(document.referrer).origin
         } catch {}
       }
-      // fallback: use window.location.origin (last resort)
-      if (!detectedSiteUrl) {
-        detectedSiteUrl = window.location.origin
-      }
+      // Do NOT fallback to window.location.origin (would always be oxidiko.com)
       setSiteUrl(detectedSiteUrl)
     }
 
@@ -537,6 +534,9 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
           </p>
         </div>
       </div>
+    </div>
+  )
+}
     </div>
   )
 }
