@@ -86,6 +86,24 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
     }
   }, [propSiteUrl, siteUrl])
 
+  useEffect(() => {
+    const detectParentUrl = () => {
+      try {
+        const parentUrl = window.opener?.location?.href || document.referrer;
+        if (parentUrl) {
+          const url = new URL(parentUrl);
+          setSiteUrl(url.origin);
+        }
+      } catch (error) {
+        console.error("Failed to detect parent URL:", error);
+      }
+    };
+
+    if (!propSiteUrl) {
+      detectParentUrl();
+    }
+  }, [propSiteUrl]);
+
   const loadProfile = async () => {
     try {
       const profileData = await getDecryptedProfile()
