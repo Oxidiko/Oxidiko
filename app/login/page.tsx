@@ -14,30 +14,14 @@ export default function LoginPage() {
   const [trustedOrigin, setTrustedOrigin] = useState<string | null>(null)
 
   useEffect(() => {
-    // Dynamically determine trusted origin from parent/opener
-    let origin: string | null = null
-    try {
-      if (window.opener && window.opener.origin) {
-        origin = window.opener.origin
-      } else if (window.parent !== window && window.parent.origin) {
-        origin = window.parent.origin
+    // Remove all previous trustedOrigin detection logic.
+    // Instead, set trustedOrigin from the first postMessage's event.origin.
+    function handleMessage(event: MessageEvent) {
+      if (!trustedOrigin) {
+        setTrustedOrigin(event.origin)
       }
-    } catch (e) {
-      // cross-origin access may fail
-      origin = null
-    }
-    // fallback: use document.referrer if available
-    if (!origin && document.referrer) {
-      try {
-        origin = new URL(document.referrer).origin
-      } catch {}
-    }
-    // Do NOT fallback to window.location.origin (would always be oxidiko.com)
-    setTrustedOrigin(origin)
-
-    const handleMessage = async (event: MessageEvent) => {
       // Only allow messages from the parent/opener's origin if available
-      if (origin && event.origin !== origin) {
+      if (trustedOrigin && event.origin !== trustedOrigin) {
         setApiError("Untrusted origin. Authentication aborted.")
         setIsLoading(false)
         return
@@ -92,7 +76,7 @@ export default function LoginPage() {
     return () => {
       window.removeEventListener("message", handleMessage)
     }
-  }, [])
+  }, [trustedOrigin])
 
   if (isLoading) {
     return (
@@ -128,6 +112,24 @@ export default function LoginPage() {
             </p>
           </div>
         </div>
+      </div>
+    )
+  }
+
+  if (!isAuthFlow) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Waiting for Authentication Request</h1>
+          <p className="text-gray-400">This page is waiting for a secure authentication request from the parent website.</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Pass trustedOrigin as siteUrl to AuthHandler
+  return <AuthHandler apiKey={apiKey} fields={fields} siteUrl={trustedOrigin} />
+}
       </div>
     )
   }

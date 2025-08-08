@@ -25,15 +25,16 @@ import { incrementQuota } from "@/lib/api-validation"
 interface AuthHandlerProps {
   apiKey?: string | null
   fields?: string | string[] | null
+  siteUrl?: string | null
 }
 
-export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
+export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandlerProps) {
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isUnlocked, setIsUnlocked] = useState(false)
   const [requestedFields, setRequestedFields] = useState<string[]>([])
   const [redirectUrl, setRedirectUrl] = useState("")
-  const [siteUrl, setSiteUrl] = useState<string>("")
+  const [siteUrl, setSiteUrl] = useState<string>(propSiteUrl || "")
   const [profile, setProfile] = useState<any>(null)
   const [credId, setCredId] = useState<string | null>(null)
   const [webAuthnSupported, setWebAuthnSupported] = useState(false)
@@ -71,30 +72,18 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
           setActiveTab("pin")
         }
       }
-
-      // Always get the *real* parent/opener origin for siteUrl
-      let detectedSiteUrl = ""
-      try {
-        if (window.opener && window.opener.location && window.opener.location.origin) {
-          detectedSiteUrl = window.opener.location.origin
-        } else if (window.parent !== window && window.parent.location && window.parent.location.origin) {
-          detectedSiteUrl = window.parent.location.origin
-        }
-      } catch (e) {
-        detectedSiteUrl = ""
-      }
-      // fallback: use document.referrer if available
-      if (!detectedSiteUrl && document.referrer) {
-        try {
-          detectedSiteUrl = new URL(document.referrer).origin
-        } catch {}
-      }
-      // Do NOT fallback to window.location.origin (would always be oxidiko.com)
-      setSiteUrl(detectedSiteUrl)
     }
 
     initializeAuth()
   }, [fields])
+
+  useEffect(() => {
+    // Remove all useEffect siteUrl detection logic.
+    // Use propSiteUrl if provided, otherwise set from first postMessage as above.
+    if (propSiteUrl && propSiteUrl !== siteUrl) {
+      setSiteUrl(propSiteUrl)
+    }
+  }, [propSiteUrl])
 
   const loadProfile = async () => {
     try {
@@ -522,6 +511,31 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
             >
               <X className="h-4 w-4 mr-2" />
               Deny
+            </Button>
+            <Button onClick={handleApprove} className="bg-green-600 hover:bg-green-700 text-white">
+              <Check className="h-4 w-4 mr-2" />
+              Allow
+            </Button>
+          </div>
+
+          <p className="text-xs text-gray-500 text-center mt-4">
+            Only the requested information will be shared. Your Oxidiko ID: {getCurrentOxidikoId()?.substring(0, 8)}...
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+          </div>
+
+          <p className="text-xs text-gray-500 text-center mt-4">
+            Only the requested information will be shared. Your Oxidiko ID: {getCurrentOxidikoId()?.substring(0, 8)}...
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
             </Button>
             <Button onClick={handleApprove} className="bg-green-600 hover:bg-green-700 text-white">
               <Check className="h-4 w-4 mr-2" />
