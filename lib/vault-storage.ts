@@ -498,47 +498,47 @@ export const recordSiteAccess = async (
   redirectUrl?: string
 ): Promise<void> => {
   if (!currentMVK) {
-    throw new Error("Vault is locked")
+    throw new Error("Vault is locked");
   }
 
   try {
-    const siteAccessData = await retrieveData(SITE_ACCESS_KEY)
-    const siteAccess = siteAccessData || {}
+    const validatedOrigin = validateSiteOrigin(siteOrigin);
+    const siteAccessData = await retrieveData(SITE_ACCESS_KEY);
+    const siteAccess = siteAccessData || {};
 
-    if (!siteAccess[siteOrigin]) {
-      siteAccess[siteOrigin] = {
+    if (!siteAccess[validatedOrigin]) {
+      siteAccess[validatedOrigin] = {
         first_access: Date.now(),
         access_count: 0,
         accessed_fields: [],
         recent_accesses: [],
-        site_url: siteOrigin
-      }
+        site_url: validatedOrigin,
+      };
     }
 
-    const siteRecord = siteAccess[siteOrigin]
-    siteRecord.access_count += 1
-    siteRecord.last_access = Date.now()
-    
-    // Add new fields to accessed fields set
-    fields.forEach(field => {
-      if (!siteRecord.accessed_fields.includes(field)) {
-        siteRecord.accessed_fields.push(field)
-      }
-    })
+    const siteRecord = siteAccess[validatedOrigin];
+    siteRecord.access_count += 1;
+    siteRecord.last_access = Date.now();
 
-    // Add to recent accesses (keep last 10)
-    siteRecord.recent_accesses.unshift({
+    // Add new fields to accessed fields set
+    fields.forEach((field) => {
+      if (!siteRecord.accessed_fields.includes(field)) {
+        siteRecord.accessed_fields.push(field);
+      }
+    });
+
+    siteRecord.recent_accesses.push({
       timestamp: Date.now(),
-      fields: fields,
+      fields,
       redirect_url: redirectUrl,
       encrypted_data: encryptedData.encrypted,
-      encryption_iv: encryptedData.iv
-    })
-    siteRecord.recent_accesses = siteRecord.recent_accesses.slice(0, 10)
+      encryption_iv: encryptedData.iv,
+    });
 
-    await storeData(SITE_ACCESS_KEY, siteAccess)
+    await storeData(SITE_ACCESS_KEY, siteAccess);
   } catch (err) {
-    console.error("Error recording site access:", err)
+    console.error("Failed to record site access:", err);
+    throw new Error("Failed to record site access");
   }
 }
 

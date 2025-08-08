@@ -93,9 +93,13 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
         if (parentUrl) {
           const url = new URL(parentUrl);
           setSiteUrl(url.origin);
+        } else {
+          console.warn("Parent URL not detected. Defaulting to www.oxidiko.com");
+          setSiteUrl("https://www.oxidiko.com");
         }
       } catch (error) {
         console.error("Failed to detect parent URL:", error);
+        setSiteUrl("https://www.oxidiko.com");
       }
     };
 
