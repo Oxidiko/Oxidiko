@@ -16,7 +16,7 @@ export default function LoginPage() {
   useEffect(() => {
     // Remove all previous trustedOrigin detection logic.
     // Instead, set trustedOrigin from the first postMessage's event.origin.
-    function handleMessage(event: MessageEvent) {
+    async function handleMessage(event: MessageEvent) {
       if (!trustedOrigin) {
         setTrustedOrigin(event.origin)
       }
@@ -129,21 +129,4 @@ export default function LoginPage() {
 
   // Pass trustedOrigin as siteUrl to AuthHandler
   return <AuthHandler apiKey={apiKey} fields={fields} siteUrl={trustedOrigin} />
-}
-      </div>
-    )
-  }
-
-  if (!isAuthFlow) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Waiting for Authentication Request</h1>
-          <p className="text-gray-400">This page is waiting for a secure authentication request from the parent website.</p>
-        </div>
-      </div>
-    )
-  }
-
-  return <AuthHandler apiKey={apiKey} fields={fields} />
 }

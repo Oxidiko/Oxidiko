@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -82,7 +82,134 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
     // Use propSiteUrl if provided, otherwise set from first postMessage as above.
     if (propSiteUrl && propSiteUrl !== siteUrl) {
       setSiteUrl(propSiteUrl)
-    }
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="container mx-auto px-4">
+          <div className="max-w-md mx-auto">
+            <div className="text-center mb-8">
+              <Shield className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+              <h1 className="text-2xl font-bold mb-2">Authentication Request</h1>
+              <p className="text-gray-400">Unlock your vault to continue</p>
+            </div>
+            <Card className="bg-gray-950 border-gray-800 mb-6">
+              <CardHeader>
+                <CardTitle className="text-white text-lg">Requested Information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {requestedFields.map((field: string) => (
+                    <div key={field} className="flex items-center gap-3">
+                      <span className="text-lg">{getFieldIcon(field)}</span>
+                      <span className="text-gray-300">{getFieldLabel(field)}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gray-950 border-gray-800">
+              <CardHeader>
+                <CardTitle className="text-white text-center">Unlock Your Vault</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 bg-gray-800">
+                    <TabsTrigger
+                      value="passkey"
+                      disabled={!webAuthnSupported || !credId}
+                      className="data-[state=active]:bg-blue-600"
+                    >
+                      <Fingerprint className="h-4 w-4 mr-1" />
+                      Passkey
+                    </TabsTrigger>
+                    <TabsTrigger value="pin" className="data-[state=active]:bg-orange-600">
+                      <Lock className="h-4 w-4 mr-1" />
+                      PIN
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="passkey" className="space-y-4">
+                    <div className="text-center">
+                      <div className="bg-gray-800 p-4 rounded-lg mb-4">
+                        <Fingerprint className="h-12 w-12 text-blue-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-300">Use your biometric authentication or security key</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={handlePasskeyUnlock}
+                      disabled={isLoading || !credId}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Fingerprint className="h-4 w-4 mr-2 animate-pulse" />
+                          Authenticating...
+                        </>
+                      ) : (
+                        <>
+                          <Fingerprint className="h-4 w-4 mr-2" />
+                          Unlock & Continue
+                        </>
+                      )}
+                    </Button>
+                  </TabsContent>
+                  <TabsContent value="pin" className="space-y-4">
+                    <div className="text-center">
+                      <div className="bg-gray-800 p-4 rounded-lg mb-4">
+                        <Lock className="h-12 w-12 text-orange-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-300">Enter your backup PIN</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <Input
+                          type={showPin ? "text" : "password"}
+                          value={pin}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPin(e.target.value)}
+                          placeholder="Enter your backup PIN"
+                          className="bg-orange-900/30 border-orange-800/50 text-white placeholder-gray-400 pr-10"
+                          minLength={8}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setShowPin(!showPin)}
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white p-1 h-auto"
+                        >
+                          {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={handlePinUnlock}
+                      disabled={isLoading || pin.length < 8}
+                      className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Lock className="h-4 w-4 mr-2 animate-pulse" />
+                          Unlocking...
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="h-4 w-4 mr-2" />
+                          Unlock & Continue
+                        </>
+                      )}
+                    </Button>
+                  </TabsContent>
+                </Tabs>
+                {error && (
+                  <Alert className="bg-red-900/20 border-red-800">
+                    <AlertDescription className="text-red-400">{error}</AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
   }, [propSiteUrl])
 
   const loadProfile = async () => {
@@ -159,7 +286,7 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
 
       // Collect requested fields
       if (!requestedFields.includes("none")) {
-        requestedFields.forEach((field) => {
+        requestedFields.forEach((field: string) => {
           if (field !== "none" && profile[field]) {
             allowedData[field] = profile[field]
           }
@@ -344,7 +471,7 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {requestedFields.map((field) => (
+                  {requestedFields.map((field: string) => (
                     <div key={field} className="flex items-center gap-3">
                       <span className="text-lg">{getFieldIcon(field)}</span>
                       <span className="text-gray-300">{getFieldLabel(field)}</span>
@@ -415,7 +542,7 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
                         <Input
                           type={showPin ? "text" : "password"}
                           value={pin}
-                          onChange={(e) => setPin(e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPin(e.target.value)}
                           placeholder="Enter your backup PIN"
                           className="bg-orange-900/30 border-orange-800/50 text-white placeholder-gray-400 pr-10"
                           minLength={8}
@@ -423,116 +550,5 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
                         <Button
                           type="button"
                           size="sm"
-                          variant="ghost"
+// ...existing code...
                           onClick={() => setShowPin(!showPin)}
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white p-1 h-auto"
-                        >
-                          {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <Button
-                      onClick={handlePinUnlock}
-                      disabled={isLoading || pin.length < 8}
-                      className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Lock className="h-4 w-4 mr-2 animate-pulse" />
-                          Unlocking...
-                        </>
-                      ) : (
-                        <>
-                          <Lock className="h-4 w-4 mr-2" />
-                          Unlock & Continue
-                        </>
-                      )}
-                    </Button>
-                  </TabsContent>
-                </Tabs>
-
-                {error && (
-                  <Alert className="bg-red-900/20 border-red-800">
-                    <AlertDescription className="text-red-400">{error}</AlertDescription>
-                  </Alert>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center">
-      <div className="container mx-auto px-4">
-        <div className="max-w-md mx-auto">
-          <div className="text-center mb-8">
-            <Shield className="h-16 w-16 text-green-400 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold mb-2">Authorization Request</h1>
-            <p className="text-gray-400">A website wants to access your information</p>
-          </div>
-
-          <Card className="bg-gray-950 border-gray-800 mb-6">
-            <CardHeader>
-              <CardTitle className="text-white text-lg">Requested Data</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {requestedFields.map((field) => (
-                  <div key={field} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg">{getFieldIcon(field)}</span>
-                      <div>
-                        <div className="text-white font-medium">{getFieldLabel(field)}</div>
-                        <div className="text-gray-400 text-sm">
-                          {field === "none" ? "No additional data" : profile?.[field] || "Not available"}
-                        </div>
-                      </div>
-                    </div>
-                    {(field === "none" || profile?.[field]) && (
-                      <Badge className="bg-green-900 text-green-400 hover:bg-green-900">
-                        <Check className="h-3 w-3" />
-                      </Badge>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Button
-              onClick={handleDeny}
-              variant="outline"
-              className="bg-red-900/20 border-red-800 text-red-400 hover:bg-red-900/30 hover:text-red-400"
-            >
-              <X className="h-4 w-4 mr-2" />
-              Deny
-            </Button>
-            <Button onClick={handleApprove} className="bg-green-600 hover:bg-green-700 text-white">
-              <Check className="h-4 w-4 mr-2" />
-              Allow
-            </Button>
-          </div>
-
-          <p className="text-xs text-gray-500 text-center mt-4">
-            Only the requested information will be shared. Your Oxidiko ID: {getCurrentOxidikoId()?.substring(0, 8)}...
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
-          </div>
-
-          <p className="text-xs text-gray-500 text-center mt-4">
-            Only the requested information will be shared. Your Oxidiko ID: {getCurrentOxidikoId()?.substring(0, 8)}...
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
