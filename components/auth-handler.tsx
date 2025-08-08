@@ -457,14 +457,3 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
       </div>
     );
   }
-                  <Alert className="bg-red-900/20 border-red-800">
-                    <AlertDescription className="text-red-400">{error}</AlertDescription>
-                  </Alert>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    );
-  }
