@@ -126,9 +126,10 @@ export function SiteAccessHistory({ isOpen, onClose }: SiteAccessHistoryProps) {
 
   const getDomainFromOrigin = (origin: string) => {
     try {
-      return new URL(origin).hostname
+      const url = new URL(origin);
+      return url.hostname;
     } catch {
-      return origin
+      return "Invalid URL";
     }
   }
 

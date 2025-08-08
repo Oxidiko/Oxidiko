@@ -422,8 +422,19 @@ export const updateProfile = async (profileData: any): Promise<void> => {
   currentProfile = profileData
 }
 
+// Validate site origin URL
+export const validateSiteOrigin = (siteOrigin: string): string => {
+  try {
+    const url = new URL(siteOrigin);
+    return url.origin;
+  } catch {
+    throw new Error("Invalid site origin");
+  }
+};
+
 // Get or create site-specific key
 export const getSiteKey = async (siteOrigin: string): Promise<CryptoKey> => {
+  const validatedOrigin = validateSiteOrigin(siteOrigin);
   if (!currentMVK) {
     throw new Error("Vault is locked")
   }
@@ -433,9 +444,9 @@ export const getSiteKey = async (siteOrigin: string): Promise<CryptoKey> => {
     const siteKeysData = await retrieveData(SITE_KEYS_KEY)
     const siteKeys = siteKeysData || {}
 
-    if (siteKeys[siteOrigin]) {
+    if (siteKeys[validatedOrigin]) {
       // Decrypt and import existing key
-      const encryptedKeyData = siteKeys[siteOrigin]
+      const encryptedKeyData = siteKeys[validatedOrigin]
       const keyData = await decryptData(
         new Uint8Array(encryptedKeyData.encrypted).buffer,
         currentMVK,
@@ -451,14 +462,14 @@ export const getSiteKey = async (siteOrigin: string): Promise<CryptoKey> => {
       )
     } else {
       // Generate new site key
-      const siteKey = await generateSiteKey(siteOrigin)
+      const siteKey = await generateSiteKey(validatedOrigin)
       
       // Export and encrypt the key for storage
       const keyData = await crypto.subtle.exportKey("raw", siteKey)
       const { encrypted, iv } = await encryptData(Array.from(new Uint8Array(keyData)), currentMVK)
       
       // Store the encrypted key
-      siteKeys[siteOrigin] = {
+      siteKeys[validatedOrigin] = {
         encrypted: Array.from(new Uint8Array(encrypted)),
         iv: Array.from(iv),
         created_at: Date.now()
