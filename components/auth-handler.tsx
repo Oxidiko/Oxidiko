@@ -92,14 +92,15 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
         const parentUrl = window.opener?.location?.href || document.referrer;
         if (parentUrl) {
           const url = new URL(parentUrl);
-          setSiteUrl(url.origin);
-        } else {
-          console.warn("Parent URL not detected. Defaulting to www.oxidiko.com");
-          setSiteUrl("https://www.oxidiko.com");
+          if (url.origin) {
+            setSiteUrl(url.origin);
+            return;
+          }
         }
+        throw new Error("Unable to detect parent URL");
       } catch (error) {
         console.error("Failed to detect parent URL:", error);
-        setSiteUrl("https://www.oxidiko.com");
+        setError("Failed to detect the parent website's URL. Please ensure the authentication flow is initiated correctly.");
       }
     };
 
