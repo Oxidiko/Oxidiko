@@ -84,7 +84,6 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
       setSiteUrl(propSiteUrl)
     }
   }, [propSiteUrl, siteUrl])
-  }, [propSiteUrl])
 
   const loadProfile = async () => {
     try {
@@ -325,7 +324,7 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (!isUnlocked) {
@@ -339,6 +338,16 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
               <p className="text-gray-400">Unlock your vault to continue</p>
             </div>
 
+  if (!isUnlocked) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="container mx-auto px-4">
+          <div className="max-w-md mx-auto">
+            <div className="text-center mb-8">
+              <Shield className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+              <h1 className="text-2xl font-bold mb-2">Authentication Request</h1>
+              <p className="text-gray-400">Unlock your vault to continue</p>
+            </div>
             <Card className="bg-gray-950 border-gray-800 mb-6">
               <CardHeader>
                 <CardTitle className="text-white text-lg">Requested Information</CardTitle>
@@ -354,7 +363,6 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
                 </div>
               </CardContent>
             </Card>
-
             <Card className="bg-gray-950 border-gray-800">
               <CardHeader>
                 <CardTitle className="text-white text-center">Unlock Your Vault</CardTitle>
@@ -375,7 +383,6 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
                       PIN
                     </TabsTrigger>
                   </TabsList>
-
                   <TabsContent value="passkey" className="space-y-4">
                     <div className="text-center">
                       <div className="bg-gray-800 p-4 rounded-lg mb-4">
@@ -383,7 +390,6 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
                         <p className="text-sm text-gray-300">Use your biometric authentication or security key</p>
                       </div>
                     </div>
-
                     <Button
                       onClick={handlePasskeyUnlock}
                       disabled={isLoading || !credId}
@@ -402,7 +408,6 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
                       )}
                     </Button>
                   </TabsContent>
-
                   <TabsContent value="pin" className="space-y-4">
                     <div className="text-center">
                       <div className="bg-gray-800 p-4 rounded-lg mb-4">
@@ -410,7 +415,6 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
                         <p className="text-sm text-gray-300">Enter your backup PIN</p>
                       </div>
                     </div>
-
                     <div className="space-y-2">
                       <div className="relative">
                         <Input
@@ -424,5 +428,42 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
                         <Button
                           type="button"
                           size="sm"
-// ...existing code...
+                          variant="ghost"
                           onClick={() => setShowPin(!showPin)}
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white p-1 h-auto"
+                        >
+                          {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={handlePinUnlock}
+                      disabled={isLoading || pin.length < 8}
+                      className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Lock className="h-4 w-4 mr-2 animate-pulse" />
+                          Unlocking...
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="h-4 w-4 mr-2" />
+                          Unlock & Continue
+                        </>
+                      )}
+                    </Button>
+                  </TabsContent>
+                </Tabs>
+                {error && (
+                  <Alert className="bg-red-900/20 border-red-800">
+                    <AlertDescription className="text-red-400">{error}</AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
