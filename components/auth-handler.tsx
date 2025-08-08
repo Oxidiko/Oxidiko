@@ -338,17 +338,6 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
               <h1 className="text-2xl font-bold mb-2">Authentication Request</h1>
               <p className="text-gray-400">Unlock your vault to continue</p>
             </div>
-
-  if (!isUnlocked) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="container mx-auto px-4">
-          <div className="max-w-md mx-auto">
-            <div className="text-center mb-8">
-              <Shield className="h-16 w-16 text-blue-400 mx-auto mb-4" />
-              <h1 className="text-2xl font-bold mb-2">Authentication Request</h1>
-              <p className="text-gray-400">Unlock your vault to continue</p>
-            </div>
             <Card className="bg-gray-950 border-gray-800 mb-6">
               <CardHeader>
                 <CardTitle className="text-white text-lg">Requested Information</CardTitle>
@@ -457,6 +446,17 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
                   </TabsContent>
                 </Tabs>
                 {error && (
+                  <Alert className="bg-red-900/20 border-red-800">
+                    <AlertDescription className="text-red-400">{error}</AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
                   <Alert className="bg-red-900/20 border-red-800">
                     <AlertDescription className="text-red-400">{error}</AlertDescription>
                   </Alert>
