@@ -33,6 +33,7 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
   const [isUnlocked, setIsUnlocked] = useState(false)
   const [requestedFields, setRequestedFields] = useState<string[]>([])
   const [redirectUrl, setRedirectUrl] = useState("")
+  const [siteUrl, setSiteUrl] = useState<string>("")
   const [profile, setProfile] = useState<any>(null)
   const [credId, setCredId] = useState<string | null>(null)
   const [webAuthnSupported, setWebAuthnSupported] = useState(false)
@@ -70,6 +71,29 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
           setActiveTab("pin")
         }
       }
+
+      // Detect the requesting site origin (siteUrl)
+      let detectedSiteUrl = ""
+      try {
+        if (window.opener && window.opener.location && window.opener.location.origin) {
+          detectedSiteUrl = window.opener.location.origin
+        } else if (window.parent !== window && window.parent.location && window.parent.location.origin) {
+          detectedSiteUrl = window.parent.location.origin
+        }
+      } catch (e) {
+        detectedSiteUrl = ""
+      }
+      // fallback: use document.referrer if available
+      if (!detectedSiteUrl && document.referrer) {
+        try {
+          detectedSiteUrl = new URL(document.referrer).origin
+        } catch {}
+      }
+      // fallback: use window.location.origin (last resort)
+      if (!detectedSiteUrl) {
+        detectedSiteUrl = window.location.origin
+      }
+      setSiteUrl(detectedSiteUrl)
     }
 
     initializeAuth()
@@ -156,11 +180,11 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
         })
       }
 
-      // Encrypt allowedData with site key
-      const encryptedData = await encryptDataForSite(allowedData, window.location.origin)
+      // Encrypt allowedData with site key (use detected siteUrl)
+      const encryptedData = await encryptDataForSite(allowedData, siteUrl)
 
-      // Record site access in vault
-      await recordSiteAccess(window.location.origin, requestedFields, encryptedData, redirectUrl)
+      // Record site access in vault (use detected siteUrl)
+      await recordSiteAccess(siteUrl, requestedFields, encryptedData, redirectUrl)
 
       // --- CLIENT CALLS API ROUTE INSTEAD OF generateJWT ---
       const response = await fetch("/api/generate-jwt", {
@@ -182,13 +206,14 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
         }
       }
 
-      // Only send the JWT token to the site
+      // Only send the JWT token to the site, include siteUrl
       if (window.opener) {
         const parentOrigin = redirectUrl ? new URL(redirectUrl).origin : "*"
         window.opener.postMessage(
           {
             type: "OXID_AUTH_SUCCESS",
             token: token,
+            site_url: siteUrl,
           },
           parentOrigin,
         )
@@ -204,6 +229,7 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
           {
             type: "OXID_AUTH_ERROR",
             error: "Failed to generate authentication token",
+            site_url: siteUrl,
           },
           parentOrigin,
         )
