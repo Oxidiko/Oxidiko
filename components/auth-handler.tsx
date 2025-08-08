@@ -457,3 +457,4 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
       </div>
     );
   }
+}
