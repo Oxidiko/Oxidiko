@@ -2,131 +2,46 @@
 
 import { useState, useEffect } from "react"
 import { AuthHandler } from "@/components/auth-handler"
-import { validateAPIKey } from "@/lib/api-validation"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function LoginPage() {
-  const [isAuthFlow, setIsAuthFlow] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [apiError, setApiError] = useState("")
   const [apiKey, setApiKey] = useState<string | null>(null)
   const [fields, setFields] = useState<string | null>(null)
-  const [trustedOrigin, setTrustedOrigin] = useState<string | null>(null)
 
   useEffect(() => {
-    // Remove all previous trustedOrigin detection logic.
-    // Instead, set trustedOrigin from the first postMessage's event.origin.
-    async function handleMessage(event: MessageEvent) {
-      if (!trustedOrigin) {
-        setTrustedOrigin(event.origin)
-      }
-      // Only allow messages from the parent/opener's origin if available
-      if (trustedOrigin && event.origin !== trustedOrigin) {
-        setApiError("Untrusted origin. Authentication aborted.")
-        setIsLoading(false)
+    // Listen for configuration from parent window
+    const messageListener = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) {
+        console.warn("Login page ignoring message from untrusted origin:", event.origin)
         return
       }
-      const { api_key: providedApiKey, fields: providedFields, redirect } = event.data || {}
-      // Normalize fields to a comma-separated string
-      let normalizedFields = providedFields
-      if (Array.isArray(providedFields)) {
-        normalizedFields = providedFields.join(",")
-      }
-      if (!providedApiKey) {
-        setApiError("API key is required. Please provide a valid api_key parameter.")
-        setIsLoading(false)
-        return
-      }
-      if (!normalizedFields || !redirect) {
-        setApiError("Missing required parameters: fields and redirect are required.")
-        setIsLoading(false)
-        return
-      }
-      try {
-        const validation = await validateAPIKey(providedApiKey)
-        if (!validation.valid) {
-          setApiError("Invalid API key. Please check your API key and try again.")
-          setIsLoading(false)
-          return
+
+      console.log("Login page received message:", event.data)
+
+      // Handle configuration from parent
+      if (event.data.api_key || event.data.fields || event.data.redirect || event.data.site_url) {
+        if (event.data.api_key) {
+          setApiKey(event.data.api_key)
         }
-        if (!validation.canUse) {
-          const quotaInfo = validation.quota ? ` Current quota: ${validation.quota}` : ""
-          setApiError(`API key quota exceeded or inactive.${quotaInfo} Please upgrade your plan or contact support.`)
-          setIsLoading(false)
-          return
+        if (event.data.fields) {
+          setFields(event.data.fields)
         }
-        setApiKey(providedApiKey)
-        setFields(normalizedFields)
-        setIsAuthFlow(true)
-      } catch (err) {
-        console.error("API key validation error:", err)
-        setApiError("Failed to validate API key. Please try again or contact support.")
-        setIsLoading(false)
-        return
+        // Forward the complete message to AuthHandler via props
+        // The AuthHandler will handle the rest of the configuration
       }
-      setIsLoading(false)
     }
-    window.addEventListener("message", handleMessage)
-    // Optionally, notify parent that the page is ready
+
+    window.addEventListener("message", messageListener)
+
+    // Signal to parent that we're ready to receive configuration
     if (window.opener) {
+      console.log("Login page signaling ready to parent")
       window.opener.postMessage({ oxidikoReady: true }, "*")
-    } else if (window.parent !== window) {
-      window.parent.postMessage({ oxidikoReady: true }, "*")
     }
+
     return () => {
-      window.removeEventListener("message", handleMessage)
+      window.removeEventListener("message", messageListener)
     }
-  }, [trustedOrigin])
+  }, [])
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-      </div>
-    )
-  }
-
-  if (apiError) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto px-4">
-          <h1 className="text-2xl font-bold mb-4">Authentication Error</h1>
-          <Alert className="bg-red-900/20 border-red-800 mb-4">
-            <AlertDescription className="text-red-400">{apiError}</AlertDescription>
-          </Alert>
-          <div className="text-gray-400 text-sm space-y-2">
-            <p>Required parameters must be sent via <code>postMessage</code> from the parent website:</p>
-            <ul className="list-disc list-inside text-left">
-              <li>
-                <code>api_key</code> - Your valid API key
-              </li>
-              <li>
-                <code>fields</code> - Comma-separated list of fields to collect
-              </li>
-              <li>
-                <code>redirect</code> - URL to redirect after authentication
-              </li>
-            </ul>
-            <p className="mt-4">
-              Visit our API documentation for more information or contact support if you need assistance.
-            </p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!isAuthFlow) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Waiting for Authentication Request</h1>
-          <p className="text-gray-400">This page is waiting for a secure authentication request from the parent website.</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Pass trustedOrigin as siteUrl to AuthHandler
-  return <AuthHandler apiKey={apiKey} fields={fields} siteUrl={trustedOrigin} />
+  return <AuthHandler apiKey={apiKey} fields={fields} />
 }

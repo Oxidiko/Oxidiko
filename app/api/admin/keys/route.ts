@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 import { verifyJWT } from "@/lib/jwt-utils"

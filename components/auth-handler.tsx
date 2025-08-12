@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -26,22 +25,22 @@ import { incrementQuota } from "@/lib/api-validation"
 interface AuthHandlerProps {
   apiKey?: string | null
   fields?: string | string[] | null
-  siteUrl?: string | null
 }
 
-export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandlerProps) {
+export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isUnlocked, setIsUnlocked] = useState(false)
   const [requestedFields, setRequestedFields] = useState<string[]>([])
   const [redirectUrl, setRedirectUrl] = useState("")
-  const [siteUrl, setSiteUrl] = useState<string>(propSiteUrl || "")
+  const [siteUrl, setSiteUrl] = useState("")
   const [profile, setProfile] = useState<any>(null)
   const [credId, setCredId] = useState<string | null>(null)
   const [webAuthnSupported, setWebAuthnSupported] = useState(false)
   const [pin, setPin] = useState("")
   const [showPin, setShowPin] = useState(false)
   const [activeTab, setActiveTab] = useState("passkey")
+  const [configReceived, setConfigReceived] = useState(false)
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -50,7 +49,10 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
         if (Array.isArray(fields)) {
           fieldsArray = fields
         } else if (typeof fields === "string") {
-          fieldsArray = fields.split(",").map((f) => f.trim()).filter(Boolean)
+          fieldsArray = fields
+            .split(",")
+            .map((f) => f.trim())
+            .filter(Boolean)
         }
       } else {
         // fallback to URL param for backward compatibility
@@ -63,6 +65,7 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
       const redirect = urlParams.get("redirect") || ""
       setRedirectUrl(redirect)
       setWebAuthnSupported(isWebAuthnSupported())
+
       if (isVaultUnlocked()) {
         setIsUnlocked(true)
         await loadProfile()
@@ -79,35 +82,47 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
   }, [fields])
 
   useEffect(() => {
-    // Remove all useEffect siteUrl detection logic.
-    // Use propSiteUrl if provided, otherwise set from first postMessage as above.
-    if (propSiteUrl && propSiteUrl !== siteUrl) {
-      setSiteUrl(propSiteUrl)
-    }
-  }, [propSiteUrl, siteUrl])
-
-  useEffect(() => {
-    const detectParentUrl = () => {
-      try {
-        const parentUrl = window.opener?.location?.href || document.referrer;
-        if (parentUrl) {
-          const url = new URL(parentUrl);
-          if (url.origin) {
-            setSiteUrl(url.origin);
-            return;
-          }
-        }
-        throw new Error("Unable to detect parent URL");
-      } catch (error) {
-        console.error("Failed to detect parent URL:", error);
-        setError("Failed to detect the parent website's URL. Please ensure the authentication flow is initiated correctly.");
+    // Listen for configuration from parent window
+    const messageListener = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) {
+        console.warn("Ignoring message from untrusted origin:", event.origin)
+        return
       }
-    };
 
-    if (!propSiteUrl) {
-      detectParentUrl();
+      console.log("Auth handler received message:", event.data)
+
+      // Handle configuration from parent
+      if (event.data.api_key || event.data.fields || event.data.redirect || event.data.site_url) {
+        if (event.data.fields) {
+          const fieldsArray = event.data.fields
+            .split(",")
+            .map((f: string) => f.trim())
+            .filter(Boolean)
+          setRequestedFields(fieldsArray)
+        }
+        if (event.data.redirect) {
+          setRedirectUrl(event.data.redirect)
+        }
+        if (event.data.site_url) {
+          setSiteUrl(event.data.site_url)
+          console.log("Site URL set from parent:", event.data.site_url)
+        }
+        setConfigReceived(true)
+      }
     }
-  }, [propSiteUrl]);
+
+    window.addEventListener("message", messageListener)
+
+    // Signal to parent that we're ready to receive configuration
+    if (window.opener) {
+      console.log("Signaling to parent that auth handler is ready")
+      window.opener.postMessage({ oxidikoReady: true }, "*")
+    }
+
+    return () => {
+      window.removeEventListener("message", messageListener)
+    }
+  }, [])
 
   const loadProfile = async () => {
     try {
@@ -168,6 +183,9 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
   const handleApprove = async () => {
     if (!profile) return
 
+    setIsLoading(true)
+    setError("")
+
     try {
       const oxidikoId = getCurrentOxidikoId()
       if (!oxidikoId) {
@@ -175,37 +193,69 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
       }
 
       const recId = await getStoredRecId()
+
       const allowedData: any = {
         sub: oxidikoId,
         oxidiko_id: oxidikoId,
         rec_id: recId,
       }
 
-      // Collect requested fields
+      // Collect requested fields (except 'none')
       if (!requestedFields.includes("none")) {
-        requestedFields.forEach((field: string) => {
+        requestedFields.forEach((field) => {
           if (field !== "none" && profile[field]) {
             allowedData[field] = profile[field]
           }
         })
       }
 
-      // Encrypt allowedData with site key (use detected siteUrl)
-      const encryptedData = await encryptDataForSite(allowedData, siteUrl)
+      console.log("Preparing to generate JWT with data:", {
+        hasEncryption: !!siteUrl,
+        siteUrl,
+        fields: requestedFields,
+        dataKeys: Object.keys(allowedData),
+      })
 
-      // Record site access in vault (use detected siteUrl)
-      await recordSiteAccess(siteUrl, requestedFields, encryptedData, redirectUrl)
+      let jwtPayload: any
 
-      // --- CLIENT CALLS API ROUTE INSTEAD OF generateJWT ---
+      // Try to use siteKey encryption if we have a site URL and it's different from current origin
+      if (siteUrl && siteUrl !== window.location.origin) {
+        try {
+          console.log("Attempting siteKey encryption for:", siteUrl)
+          const encryptedData = await encryptDataForSite(allowedData, siteUrl)
+          await recordSiteAccess(siteUrl, requestedFields, encryptedData, redirectUrl)
+
+          jwtPayload = {
+            encrypted: encryptedData.encrypted,
+            iv: encryptedData.iv,
+          }
+          console.log("Successfully encrypted data for site")
+        } catch (encryptError) {
+          console.error("Encryption failed, using plain data:", encryptError)
+          jwtPayload = allowedData
+        }
+      } else {
+        console.log("Using plain data (no siteUrl or same origin)")
+        jwtPayload = allowedData
+      }
+
+      console.log("Calling JWT generation API with payload type:", jwtPayload.encrypted ? "encrypted" : "plain")
+
       const response = await fetch("/api/generate-jwt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ encrypted: encryptedData.encrypted, iv: encryptedData.iv }),
+        body: JSON.stringify(jwtPayload),
       })
+
       const result = await response.json()
-      if (!response.ok) throw new Error(result.error || "Failed to generate authentication token")
+
+      if (!response.ok) {
+        console.error("JWT generation failed:", result)
+        throw new Error(result.error || `HTTP ${response.status}: Failed to generate authentication token`)
+      }
+
       const token = result.token
-      // --- END ---
+      console.log("JWT generated successfully")
 
       // Increment API quota
       if (apiKey) {
@@ -216,14 +266,13 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
         }
       }
 
-      // Only send the JWT token to the site, include siteUrl
+      // Send success message to parent
       if (window.opener) {
         const parentOrigin = redirectUrl ? new URL(redirectUrl).origin : "*"
         window.opener.postMessage(
           {
             type: "OXID_AUTH_SUCCESS",
             token: token,
-            site_url: siteUrl,
           },
           parentOrigin,
         )
@@ -232,21 +281,25 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
         const callbackUrl = `${redirectUrl}?token=${token}`
         window.location.href = callbackUrl
       }
-    } catch (err) {
+    } catch (err: any) {
+      console.error("Authentication approval error:", err)
+      const errorMessage = err.message || "Failed to generate authentication token"
+
       if (window.opener) {
         const parentOrigin = redirectUrl ? new URL(redirectUrl).origin : "*"
         window.opener.postMessage(
           {
             type: "OXID_AUTH_ERROR",
-            error: "Failed to generate authentication token",
-            site_url: siteUrl,
+            error: errorMessage,
           },
           parentOrigin,
         )
         window.close()
       } else {
-        setError("Failed to generate authentication token")
+        setError(errorMessage)
       }
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -348,7 +401,7 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   if (!isUnlocked) {
@@ -360,22 +413,32 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
               <Shield className="h-16 w-16 text-blue-400 mx-auto mb-4" />
               <h1 className="text-2xl font-bold mb-2">Authentication Request</h1>
               <p className="text-gray-400">Unlock your vault to continue</p>
+              {apiKey && <Badge className="bg-blue-900 text-blue-400 mt-2">API Request</Badge>}
+              {!configReceived && (
+                <Badge className="bg-yellow-900 text-yellow-400 mt-2">Waiting for configuration...</Badge>
+              )}
             </div>
+
             <Card className="bg-gray-950 border-gray-800 mb-6">
               <CardHeader>
                 <CardTitle className="text-white text-lg">Requested Information</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {requestedFields.map((field: string) => (
-                    <div key={field} className="flex items-center gap-3">
-                      <span className="text-lg">{getFieldIcon(field)}</span>
-                      <span className="text-gray-300">{getFieldLabel(field)}</span>
-                    </div>
-                  ))}
+                  {requestedFields.length > 0 ? (
+                    requestedFields.map((field) => (
+                      <div key={field} className="flex items-center gap-3">
+                        <span className="text-lg">{getFieldIcon(field)}</span>
+                        <span className="text-gray-300">{getFieldLabel(field)}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-center">Waiting for field configuration...</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
+
             <Card className="bg-gray-950 border-gray-800">
               <CardHeader>
                 <CardTitle className="text-white text-center">Unlock Your Vault</CardTitle>
@@ -396,6 +459,7 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
                       PIN
                     </TabsTrigger>
                   </TabsList>
+
                   <TabsContent value="passkey" className="space-y-4">
                     <div className="text-center">
                       <div className="bg-gray-800 p-4 rounded-lg mb-4">
@@ -403,6 +467,7 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
                         <p className="text-sm text-gray-300">Use your biometric authentication or security key</p>
                       </div>
                     </div>
+
                     <Button
                       onClick={handlePasskeyUnlock}
                       disabled={isLoading || !credId}
@@ -421,6 +486,7 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
                       )}
                     </Button>
                   </TabsContent>
+
                   <TabsContent value="pin" className="space-y-4">
                     <div className="text-center">
                       <div className="bg-gray-800 p-4 rounded-lg mb-4">
@@ -428,12 +494,13 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
                         <p className="text-sm text-gray-300">Enter your backup PIN</p>
                       </div>
                     </div>
+
                     <div className="space-y-2">
                       <div className="relative">
                         <Input
                           type={showPin ? "text" : "password"}
                           value={pin}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPin(e.target.value)}
+                          onChange={(e) => setPin(e.target.value)}
                           placeholder="Enter your backup PIN"
                           className="bg-orange-900/30 border-orange-800/50 text-white placeholder-gray-400 pr-10"
                           minLength={8}
@@ -449,6 +516,7 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
                         </Button>
                       </div>
                     </div>
+
                     <Button
                       onClick={handlePinUnlock}
                       disabled={isLoading || pin.length < 8}
@@ -468,6 +536,7 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
                     </Button>
                   </TabsContent>
                 </Tabs>
+
                 {error && (
                   <Alert className="bg-red-900/20 border-red-800">
                     <AlertDescription className="text-red-400">{error}</AlertDescription>
@@ -478,6 +547,86 @@ export function AuthHandler({ apiKey, fields, siteUrl: propSiteUrl }: AuthHandle
           </div>
         </div>
       </div>
-    );
+    )
   }
+
+  return (
+    <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="container mx-auto px-4">
+        <div className="max-w-md mx-auto">
+          <div className="text-center mb-8">
+            <Shield className="h-16 w-16 text-green-400 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold mb-2">Authorization Request</h1>
+            <p className="text-gray-400">
+              {siteUrl ? new URL(siteUrl).hostname : "A website"} wants to access your information
+            </p>
+            {apiKey && <Badge className="bg-green-900 text-green-400 mt-2">API Request</Badge>}
+          </div>
+
+          <Card className="bg-gray-950 border-gray-800 mb-6">
+            <CardHeader>
+              <CardTitle className="text-white text-lg">Requested Data</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {requestedFields.map((field) => (
+                  <div key={field} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">{getFieldIcon(field)}</span>
+                      <div>
+                        <div className="text-white font-medium">{getFieldLabel(field)}</div>
+                        <div className="text-gray-400 text-sm">
+                          {field === "none" ? "No additional data" : profile?.[field] || "Not available"}
+                        </div>
+                      </div>
+                    </div>
+                    {(field === "none" || profile?.[field]) && (
+                      <Badge className="bg-green-900 text-green-400 hover:bg-green-900">
+                        <Check className="h-3 w-3" />
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Button
+              onClick={handleDeny}
+              variant="outline"
+              className="bg-red-900/20 border-red-800 text-red-400 hover:bg-red-900/30 hover:text-red-400"
+              disabled={isLoading}
+            >
+              <X className="h-4 w-4 mr-2" />
+              Deny
+            </Button>
+            <Button onClick={handleApprove} className="bg-green-600 hover:bg-green-700 text-white" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Allow
+                </>
+              )}
+            </Button>
+          </div>
+
+          <p className="text-xs text-gray-500 text-center mt-4">
+            Only the requested information will be shared. Your Oxidiko ID: {getCurrentOxidikoId()?.substring(0, 8)}...
+          </p>
+
+          {error && (
+            <Alert className="mt-4 bg-red-900/20 border-red-800">
+              <AlertDescription className="text-red-400">{error}</AlertDescription>
+            </Alert>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
