@@ -41,6 +41,7 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
   const [showPin, setShowPin] = useState(false)
   const [activeTab, setActiveTab] = useState("passkey")
   const [configReceived, setConfigReceived] = useState(false)
+  const [isInitializing, setIsInitializing] = useState(true)
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -76,6 +77,8 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
           setActiveTab("pin")
         }
       }
+
+      setIsInitializing(false) // Mark initialization as complete
     }
 
     initializeAuth()
@@ -380,6 +383,10 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
       default:
         return field.charAt(0).toUpperCase() + field.slice(1)
     }
+  }
+
+  if (isInitializing) {
+    return null // Render nothing while initializing
   }
 
   if (!webAuthnSupported && !credId) {
