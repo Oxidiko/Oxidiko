@@ -42,22 +42,29 @@ export default function LoginPage() {
         setIsLoading(false)
         return
       }
-      const { api_key: providedApiKey, fields: providedFields, redirect, site_url: providedSiteUrl } = event.data || {}
+
+      console.log("Login page received message:", event.data)
+
+      const { api_key: providedApiKey, fields: providedFields, redirect, site_url } = event.data || {}
+      
       // Normalize fields to a comma-separated string
       let normalizedFields = providedFields
       if (Array.isArray(providedFields)) {
         normalizedFields = providedFields.join(",")
       }
+
       if (!providedApiKey) {
         setApiError("API key is required. Please provide a valid api_key parameter.")
         setIsLoading(false)
         return
       }
+      
       if (!normalizedFields || !redirect) {
         setApiError("Missing required parameters: fields and redirect are required.")
         setIsLoading(false)
         return
       }
+
       try {
         const validation = await validateAPIKey(providedApiKey)
         if (!validation.valid) {
@@ -71,9 +78,11 @@ export default function LoginPage() {
           setIsLoading(false)
           return
         }
+
+        // Set all the values needed for AuthHandler
         setApiKey(providedApiKey)
         setFields(normalizedFields)
-        setSiteUrl(providedSiteUrl || null)
+        setSiteUrl(site_url || null)
         setIsAuthFlow(true)
       } catch (err) {
         console.error("API key validation error:", err)
@@ -83,13 +92,17 @@ export default function LoginPage() {
       }
       setIsLoading(false)
     }
+
     window.addEventListener("message", handleMessage)
-    // Optionally, notify parent that the page is ready
+
+    // Signal to parent that we're ready to receive configuration
     if (window.opener) {
+      console.log("Login page signaling ready to parent")
       window.opener.postMessage({ oxidikoReady: true }, "*")
     } else if (window.parent !== window) {
       window.parent.postMessage({ oxidikoReady: true }, "*")
     }
+
     return () => {
       window.removeEventListener("message", handleMessage)
     }
@@ -122,9 +135,6 @@ export default function LoginPage() {
               </li>
               <li>
                 <code>redirect</code> - URL to redirect after authentication
-              </li>
-              <li>
-                <code>site_url</code> - (optional) The requesting website's origin for encrypted JWT
               </li>
             </ul>
             <p className="mt-4">
