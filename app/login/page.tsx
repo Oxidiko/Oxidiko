@@ -13,12 +13,7 @@ export default function LoginPage() {
   useEffect(() => {
     // Listen for configuration from parent window
     const messageListener = async (event: MessageEvent) => {
-      // Only accept messages from the window that opened this popup
-      if (!window.opener || event.origin !== window.opener.location.origin) {
-          console.warn("Popup ignoring message from untrusted origin:", event.origin);
-          return;
-      }
-
+      // Only accept messages from the window that opened this popup TODO
       console.log("Login page received message:", event.data)
 
       if (event.data.api_key || event.data.fields) {

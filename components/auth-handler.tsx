@@ -87,11 +87,7 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
   useEffect(() => {
     // Listen for configuration from parent window
     const messageListener = (event: MessageEvent) => {
-      if (!window.opener || event.origin !== window.opener.location.origin) {
-        console.warn("Ignoring message from untrusted origin:", event.origin)
-        return
-      }
-
+      // Only accept messages from the window that opened this popup TODO
       console.log("Auth handler received message:", event.data)
 
       // Handle configuration from parent
