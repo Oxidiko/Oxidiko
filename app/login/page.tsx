@@ -14,7 +14,6 @@ export default function LoginPage() {
   const [trustedOrigin, setTrustedOrigin] = useState<string | null>(null)
 
   useEffect(() => {
-    // Dynamically determine trusted origin from parent/opener
     let origin: string | null = null
     try {
       if (window.opener && window.opener.origin) {
@@ -23,10 +22,8 @@ export default function LoginPage() {
         origin = window.parent.origin
       }
     } catch (e) {
-      // cross-origin access may fail
       origin = null
     }
-    // fallback: use document.referrer if available
     if (!origin && document.referrer) {
       try {
         origin = new URL(document.referrer).origin
@@ -35,14 +32,12 @@ export default function LoginPage() {
     setTrustedOrigin(origin)
 
     const handleMessage = async (event: MessageEvent) => {
-      // Only allow messages from the parent/opener's origin if available
       if (origin && event.origin !== origin) {
         setApiError("Untrusted origin. Authentication aborted.")
         setIsLoading(false)
         return
       }
-      const { api_key: providedApiKey, fields: providedFields, redirect } = event.data || {}
-      // Normalize fields to a comma-separated string
+      const { api_key: providedApiKey, fields: providedFields, redirect, site_url } = event.data || {}
       let normalizedFields = providedFields
       if (Array.isArray(providedFields)) {
         normalizedFields = providedFields.join(",")
@@ -82,7 +77,6 @@ export default function LoginPage() {
       setIsLoading(false)
     }
     window.addEventListener("message", handleMessage)
-    // Optionally, notify parent that the page is ready
     if (window.opener) {
       window.opener.postMessage({ oxidikoReady: true }, "*")
     } else if (window.parent !== window) {
