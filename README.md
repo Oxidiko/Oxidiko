@@ -65,6 +65,19 @@ There’s also `/api/verify-jwt` for signature verification on the server, and `
 
 ## Integrate in your site (2 options)
 
+### Public key
+```plaintext
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA00Dfs1/uIQJduAyXAXiG
+cXuapUQIosUVcckV8vSVKdkCUP7QW9/4tMu9aT0v/6Nwqxuuuu7UGvBchE2PsAnv
+EYFegv8syI1qxLKreIuAdMzmt4a/azdmfIYOhEK1UK/7Gk11xAhSqHACfPB7ZDk4
+z28Y4Cdbk6v0HitxUBAMbA5LNL7tZrhW39bhAK0M7BvJFuypaUtP/mMthDw9Y0bg
+leYYypRy/UtbH8rvGl2FQTuqx/YvZxgzD1d2gnK8bic4OkMdQDHNBpVv7dJuQyB1
+ancYBoUkLBQCWYaOwNdZVQIpVWfP3dhHTZHGottCfBhvSlI9awykGWQv3bqc7dS5
+hwIDAQAB
+-----END PUBLIC KEY-----
+```
+
 ### A) One‑liner SDK (basic)
 ```html
 <script src="https://cdn.jsdelivr.net/gh/Oxidiko/oxidiko-sdk@main/oxidiko-sdk.js"></script>
