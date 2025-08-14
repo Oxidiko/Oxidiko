@@ -122,14 +122,6 @@ Backed by Neon/Postgres (`/api/api-keys`):
 - Service worker caches only static assets — never vault data.
 - Zero‑knowledge: private stuff never leaves the browser unless you consciously approve.
 
-## Run locally
-1. Install deps: `pnpm install`
-2. Create `.env.local` with:
-   - `RSA_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"` (single line with \n; app converts to real newlines)
-   - `DATABASE_URL="postgres://..."` (Neon or Postgres)
-3. Dev: `pnpm dev` → open `http://localhost:3000`
-4. Create your vault on the home page, then play with `/demo`.
-
 ## Key files (map so you don’t get lost)
 - `lib/vault-storage.ts` — MVK, dual‑wrap, encrypt/decrypt, site keys, access history.
 - `lib/webauthn-utils.ts` — passkey create/auth + deterministic wrap signature.
