@@ -1,69 +1,161 @@
-# Oxidiko
+# Oxidiko Web Vault
 
-> "No data leaves your browser unless you explicitly say so. No shady tracking. Not even a cookie. Your privacy is probably safer here than in your mom’s kitchen."
+> Your identity, your rules. Local‑first. Zero passwords. Zero tracking.
 
 ### ⚠️ For support/updates/suggestions, join my Telegram: http://t.me/oxidiko
 
 ## What is Oxidiko? 🤖🔒
+Oxidiko is a privacy‑first, passwordless authentication vault. It lives in your browser, not in someone else’s database.
 
-Oxidiko is a prototype authentication platform built by a 17-year-old (me!) and a very overworked AI. It’s a privacy-first, paranoia-friendly, Gen-Z-coded experiment in making authentication suck less. Think of it as your digital vault, but without the corporate surveillance, data leaks, or weird cookie popups.
-
-**TL;DR:**
-- 🗝️ All your sensitive stuff (profile, vault, etc.) is encrypted and stored *locally* in your browser using IndexedDB.
-- 🔑 Unlock your vault with a passkey (WebAuthn) + a PIN. No passwords, no phishy emails, no drama.
-- 🚫 If you don’t click a button to send data, it stays on your device. Period.
-- 👀 No Google Analytics, no Facebook pixels, no cookies, no tracking. Not even a single crumb. (Only Vercel Analytics to see the number of people opening it (traffic). Because if Oxidiko ever becomes something, I might need to upgrademmy plan)
+- 🧠 Local‑first: Everything is encrypted and stored in IndexedDB. No cloud by default.
+- 🔐 Dual‑lock security: Passkey (WebAuthn) + backup PIN. Either can decrypt your vault.
+- 🧬 Site‑specific encryption: Data for a website is encrypted with a per‑site key before it ever leaves the browser.
+- 🍪 Zero cookies, zero pixels: No tracking. If data leaves, it’s because you tapped “Allow”.
 
 ## Demo
-[Watch it here](/video/oxidiko_demo.mp4)
+- Video: `/video/oxidiko_demo.mp4`
+- Live: `https://oxidiko.com`
+- Playground: visit `/demo` to test the full flow.
 
-## How Does It Work? 🛠️
+## How it works (the vibe check)
 
-### 1. Profile Setup
-- You fill in your details (name, email, username, birthdate, etc.).
-- You create a passkey (using WebAuthn) and set a PIN (min. 8 chars, don’t use 12345678, please).
-- Your profile is encrypted with a master key, which is itself locked by both your passkey and your PIN. (Dual-wrapped keys, baby!)
-- All of this is stored in your browser’s IndexedDB. Not on some sketchy server.
+### 1) Vault Creation Flow
+What happens when you create your vault (in `components/profile-setup.tsx`):
 
-### 2. Paranoia Mode (Default) 🕵️‍♂️
-- No data leaves your browser unless you *explicitly* export it.
-- No cookies, no localStorage, no sessionStorage, no tracking.
-- If you’re not sure, just open DevTools and check. I dare you.
+1. You enter your profile fields (name, email, etc.).
+2. A passkey is created via WebAuthn (`lib/webauthn-utils.ts:createPasskey`).
+   - We derive an `oxidikoId` from the credential ID (SHA‑256).
+   - We generate a deterministic wrap signature tied to the credential.
+3. We generate a Master Vault Key (MVK) (AES‑GCM 256) and “dual‑wrap” it:
+   - Wrap A: a key derived from your passkey signature.
+   - Wrap B: a key derived from your PIN (PBKDF2, 600k iterations, SHA‑256, 32‑byte salt).
+4. Your profile is encrypted with the MVK and saved to IndexedDB under `encrypted_profile`.
+5. We also stash `site_keys` and `site_access` stores for per‑site encryption and history.
+6. We compute a `rec_id` = SHA‑256(oxidiko_id + PIN) to help you prove recovery without leaking your PIN.
 
-### 3. Open Source, But... 📜
-- Licensed under the Business Source License 1.1. You can use, copy, and modify for personal/educational/internal use, but you *can’t* resell, rehost, or make your own SaaS with it. (Sorry, not sorry.)
-- See `LICENSE` for the full legalese.
+Everything above is implemented in `lib/vault-storage.ts`.
 
-## Try It Now 🚀
-- Make your own vault at [https://oxidiko.com](https://oxidiko.com)
-- Then log in and test it at [https://v0-store-rho-hazel.vercel.app/](https://v0-store-rho-hazel.vercel.app/)
-- If it breaks, congrats, you found a bug! (Or a feature?)
-- Want to read more? Check out the docs: [https://oxidiko.com/docs](https://oxidiko.com/docs) 📚
+### 2) Unlock Flow (passkey or PIN)
+Handled by `components/vault-unlock.tsx` and `components/auth-handler.tsx`:
 
-## Why Donate? 💸
-- This is a prototype, built by a 17-year-old and an AI, not a VC-backed megacorp.
-- Donations = more features, less bugs, and maybe a pizza for the dev.
-- If you like privacy, hate tracking, and want to support indie devs, throw a coin at [https://ko-fi.com/oxidiko](https://ko-fi.com/oxidiko)
+- Passkey unlock: `authenticatePasskey(credId)` → deterministic signature → `unlockVaultWithPasskey(oxidikoId, signature)` → decrypt.
+- PIN unlock: derive key from your PIN → `unlockVaultWithPIN(pin)` → decrypt.
+- Import/Export: You can export your vault as JSON and import on another device. There’s also `obliterateVault()` if you want a fresh start.
+
+### 3) Login/Auth Flow (OAuth‑style, but make it comfy)
+Powered by `app/login/page.tsx` + `components/auth-handler.tsx` + `/api/generate-jwt`:
+
+1. Your site opens a popup to `/login`.
+2. When the popup says it’s ready (`oxidikoReady`), your site sends config via `postMessage`:
+   - `api_key`: your Oxidiko API key
+   - `fields`: comma list of requested claims (e.g., `name,email,rec_id` or `none`)
+   - `redirect`: where to bounce after auth (optional; popup closes and messages back by default)
+   - `site_url`: your site URL (used for per‑site encryption)
+3. The popup validates your API key via `/api/api-keys` and shows the user what’s being requested.
+4. User unlocks their vault (passkey or PIN).
+5. Data packaging:
+   - If `site_url` is a different origin, we encrypt the allowed data using a per‑site key (HKDF‑derived) inside the vault: `encryptDataForSite`.
+   - Otherwise, we fall back to plain claims (still signed).
+6. The server signs a short‑lived JWT (RS256) at `/api/generate-jwt` using `RSA_PRIVATE_KEY`.
+7. The popup posts back `{ type: 'OXID_AUTH_SUCCESS', token }` to `window.opener` and closes.
+
+There’s also `/api/verify-jwt` for signature verification on the server, and `lib/jwt-utils.ts` for client‑side claim checks (no signature verification in browser).
+
+## Integrate in your site (2 options)
+
+### A) One‑liner SDK (basic)
+```html
+<script src="https://cdn.jsdelivr.net/gh/Oxidiko/oxidiko-sdk@main/oxidiko-sdk.js"></script>
+<script>
+  const oxidiko = new OxidikoAuth({ apiKey: 'YOUR_API_KEY' });
+  const { token } = await oxidiko.authenticate(['name','email']);
+  // Verify token server‑side using your RS256 public key
+</script>
+```
+
+### B) Popup + postMessage (full control)
+```js
+const fields = ['name','email','rec_id'].join(',');
+const authUrl = `${window.location.origin}/login`;
+const popup = window.open(authUrl, 'oxidiko-auth', 'width=500,height=700');
+
+function onMessage(event) {
+  if (event.origin !== window.location.origin) return;
+  if (event.data?.oxidikoReady) {
+    popup.postMessage({
+      api_key: 'YOUR_API_KEY',
+      fields,
+      redirect: `${window.location.origin}/callback`,
+      site_url: window.location.href,
+    }, window.location.origin);
+  }
+  if (event.data?.type === 'OXID_AUTH_SUCCESS') {
+    const { token } = event.data;
+    // Send token to your backend to verify RS256 signature
+    window.removeEventListener('message', onMessage);
+    popup.close();
+  }
+  if (event.data?.type === 'OXID_AUTH_ERROR') {
+    console.error(event.data.error);
+    window.removeEventListener('message', onMessage);
+    popup.close();
+  }
+}
+
+window.addEventListener('message', onMessage);
+```
+
+## API keys & quota (dev‑friendly, no dark patterns)
+Backed by Neon/Postgres (`/api/api-keys`):
+- `POST { action: 'validate' | 'increment' | 'create' | 'activate' }`
+- Quota is a simple `used/total` string.
+- On successful auth, we `increment` usage.
+
+## Security architecture (short + spicy)
+- AES‑GCM 256 everywhere for data encryption.
+- Dual‑wrapped MVK: passkey‑derived key + PIN‑derived key (PBKDF2 600k, SHA‑256, 32‑byte salt).
+- Oxidiko ID = SHA‑256(credential ID). Recovery ID = SHA‑256(oxidiko_id + PIN).
+- Per‑site encryption via HKDF (origin‑salted) before any data leaves the device.
+- JWTs are RS256‑signed server‑side. Verify signatures on your backend.
+- Service worker caches only static assets — never vault data.
+- Zero‑knowledge: private stuff never leaves the browser unless you consciously approve.
+
+## Run locally
+1. Install deps: `pnpm install`
+2. Create `.env.local` with:
+   - `RSA_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"` (single line with \n; app converts to real newlines)
+   - `DATABASE_URL="postgres://..."` (Neon or Postgres)
+3. Dev: `pnpm dev` → open `http://localhost:3000`
+4. Create your vault on the home page, then play with `/demo`.
+
+## Key files (map so you don’t get lost)
+- `lib/vault-storage.ts` — MVK, dual‑wrap, encrypt/decrypt, site keys, access history.
+- `lib/webauthn-utils.ts` — passkey create/auth + deterministic wrap signature.
+- `components/profile-setup.tsx` — vault creation UI.
+- `components/vault-unlock.tsx` — passkey/PIN unlock UI.
+- `components/auth-handler.tsx` — popup flow, consent screen, JWT request.
+- `app/api/generate-jwt/route.ts` — RS256 signing.
+- `app/api/verify-jwt/route.ts` — server‑side verify.
+- `app/api/api-keys/route.ts` — validate/increment/activate keys.
+- `app/login/page.tsx` — popup entry point.
+- `app/demo/page.tsx` — end‑to‑end demo with token verification.
+
+## Try it now 🚀
+- Make your own vault at `https://oxidiko.com`
+- Then test it at `/demo`
 
 ## Brutally Honest FAQ 🤔
+- Is this production‑ready?
+  - It’s a prototype, but stable enough to hack on. Verify everything server‑side.
+- Can you see my data?
+  - Nope. It’s encrypted and local by default.
+- What if I forget my PIN or lose my passkey?
+  - You’re locked out. That’s by design (no backdoors).
 
-**Q: Is this production-ready?**
-> LOL, no. It’s a prototype. Use at your own risk. But hey, it’s probably safer than most things you use daily, and it is pretty much stable.
-
-**Q: Can you see my data?**
-> Nope. Not even if I wanted to. Everything’s encrypted and local. Unless you send it somewhere, it stays with you.
-
-**Q: What if I forget my PIN or lose my passkey?**
-> You’re locked out. That’s the point. No backdoors, no password resets, no customer support hotline.
-
-**Q: Why so paranoid?**
-> Because you should be. The internet is a scary place.
-
-**Q: Can I use this for my startup?**
-> Not unless you want a lawyer in your inbox. Read the license. But you can check out the API.
+## License
+Business Source License 1.1 — personal/education/internal use is fine. No reselling/rehosting/SaaS clones. See `LICENSE`.
 
 ---
+Made with caffeine ☕, memes 🐸, and a healthy distrust of surveillance capitalism.
 
-Made with caffeine ☕, memes 🐸, and a healthy dose of skepticism.
-
-*Oxidiko: Your data, your responsibility*
+Oxidiko: your data, your responsibility.
