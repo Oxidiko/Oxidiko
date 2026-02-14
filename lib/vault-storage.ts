@@ -685,5 +685,10 @@ export const encryptDataWithPublicKey = async (data: any, publicKey: CryptoKey):
     encodedData
   )
 
-  return btoa(String.fromCharCode(...new Uint8Array(encrypted)))
+  const encryptedArray = new Uint8Array(encrypted)
+  let binary = ""
+  for (let i = 0; i < encryptedArray.byteLength; i++) {
+    binary += String.fromCharCode(encryptedArray[i])
+  }
+  return window.btoa(binary)
 }

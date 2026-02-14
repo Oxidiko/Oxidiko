@@ -192,18 +192,18 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
       }
 
       const recId = await getStoredRecId()
-
-      const allowedData: any = {
+      const identityClaims = {
         sub: oxidikoId,
-        oxidiko_id: oxidikoId, // legacy/duplicate for ease
+        oxidiko_id: oxidikoId,
         rec_id: recId,
       }
 
-      // Collect requested fields (except 'none')
+      // Collect requested profile fields
+      const profileData: any = {}
       if (!requestedFields.includes("none")) {
         requestedFields.forEach((field) => {
           if (field !== "none" && profile[field]) {
-            allowedData[field] = profile[field]
+            profileData[field] = profile[field]
           }
         })
       }
@@ -230,7 +230,7 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
         hasEncryption: !!publicKeyPem,
         siteUrl,
         fields: requestedFields,
-        dataKeys: Object.keys(allowedData),
+        profileFields: Object.keys(profileData),
       })
 
       let jwtPayload: any
@@ -238,29 +238,29 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
       // Use Asymmetric Encryption if Public Key is available
       if (publicKeyPem) {
         try {
-          console.log("Encrypting data with Public Key...")
+          console.log("Encrypting profile data with Public Key...")
           const { importPublicKey, encryptDataWithPublicKey } = await import("@/lib/vault-storage")
           const socketKey = await importPublicKey(publicKeyPem)
-          const encryptedData = await encryptDataWithPublicKey(allowedData, socketKey)
+
+          // Encrypt ONLY the profile data to stay within RSA size limits (2048-bit RSA-OAEP limit is ~190 bytes)
+          const encryptedBlob = await encryptDataWithPublicKey(profileData, socketKey)
 
           jwtPayload = {
-            encrypted: encryptedData,
+            ...identityClaims,
+            encrypted: encryptedBlob,
             // No IV for RSA-OAEP
           }
-          console.log("Successfully encrypted data with Public Key")
+          console.log("Successfully encrypted profile data with Public Key")
         } catch (err) {
           console.error("Encryption failed:", err)
-          // Fallback to plain if encryption fails? Or error out? 
-          // Better to error out if encryption was expected, but for now we might fallback or just throw.
-          // Let's throw to be safe - don't send plain data if encryption was attempted.
-          throw new Error("Failed to encrypt data with Public Key")
+          throw new Error("Failed to encrypt data with Public Key. The profile data might be too large for RSA-OAEP 2048.")
         }
       } else if (siteUrl && siteUrl !== window.location.origin) {
-        // Fallback to old symmetric siteKey logic if no Public Key but siteUrl is present
-        // (This might be deprecated but keeping for compatibility if needed, though we prefer RSA now)
+        // Fallback to old symmetric siteKey logic
         try {
           console.log("Attempting legacy siteKey encryption for:", siteUrl)
-          const encryptedData = await encryptDataForSite(allowedData, siteUrl)
+          const allData = { ...identityClaims, ...profileData }
+          const encryptedData = await encryptDataForSite(allData, siteUrl)
           await recordSiteAccess(siteUrl, requestedFields, encryptedData, redirectUrl)
 
           jwtPayload = {
@@ -270,11 +270,11 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
           console.log("Successfully encrypted data for site (legacy)")
         } catch (encryptError) {
           console.error("Encryption failed, using plain data:", encryptError)
-          jwtPayload = allowedData
+          jwtPayload = { ...identityClaims, ...profileData }
         }
       } else {
         console.log("Using plain data (no Public Key or siteUrl/same origin)")
-        jwtPayload = allowedData
+        jwtPayload = { ...identityClaims, ...profileData }
       }
 
       console.log("Calling JWT generation API with payload type:", jwtPayload.encrypted ? "encrypted" : "plain")
