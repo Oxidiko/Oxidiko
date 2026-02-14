@@ -3,39 +3,53 @@ import { neon } from "@neondatabase/serverless"
 
 const sql = neon(process.env.DATABASE_URL!)
 
+// Helper to generate keys
+const generateKeyPair = async () => {
+  const { privateKey, publicKey } = await crypto.subtle.generateKey(
+    {
+      name: "RSA-OAEP",
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: "SHA-256",
+    },
+    true,
+    ["encrypt", "decrypt"]
+  )
+
+  const exportedPublic = await crypto.subtle.exportKey("spki", publicKey)
+  const exportedPrivate = await crypto.subtle.exportKey("pkcs8", privateKey)
+
+  const toPem = (buffer: ArrayBuffer, type: string) => {
+    const b64 = Buffer.from(buffer).toString('base64')
+    const chunks = b64.match(/.{1,64}/g)
+    const formattedChunks = chunks ? chunks.join('\n') : b64
+    return `-----BEGIN ${type} KEY-----\n${formattedChunks}\n-----END ${type} KEY-----`
+  }
+
+  return {
+    publicKey: toPem(exportedPublic, "PUBLIC"),
+    privateKey: toPem(exportedPrivate, "PRIVATE")
+  }
+}
+
+const ensureKeys = async (keyData: any) => {
+  if (!keyData.public_key || !keyData.private_key) {
+    const { publicKey, privateKey } = await generateKeyPair()
+    await sql`
+      UPDATE api_keys 
+      SET public_key = ${publicKey}, private_key = ${privateKey}, updated_at = CURRENT_TIMESTAMP
+      WHERE api_key = ${keyData.api_key}
+    `
+    keyData.public_key = publicKey
+    keyData.private_key = privateKey
+  }
+  return keyData
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { action, ...data } = body
-
-    // Helper to generate keys
-    const generateKeyPair = async () => {
-      const { privateKey, publicKey } = await crypto.subtle.generateKey(
-        {
-          name: "RSA-OAEP",
-          modulusLength: 2048,
-          publicExponent: new Uint8Array([1, 0, 1]),
-          hash: "SHA-256",
-        },
-        true,
-        ["encrypt", "decrypt"]
-      )
-
-      const exportedPublic = await crypto.subtle.exportKey("spki", publicKey)
-      const exportedPrivate = await crypto.subtle.exportKey("pkcs8", privateKey)
-
-      const toPem = (buffer: ArrayBuffer, type: string) => {
-        const b64 = Buffer.from(buffer).toString('base64')
-        const chunks = b64.match(/.{1,64}/g)
-        const formattedChunks = chunks ? chunks.join('\n') : b64
-        return `-----BEGIN ${type} KEY-----\n${formattedChunks}\n-----END ${type} KEY-----`
-      }
-
-      return {
-        publicKey: toPem(exportedPublic, "PUBLIC"),
-        privateKey: toPem(exportedPrivate, "PRIVATE")
-      }
-    }
 
     switch (action) {
       case "migrate":
@@ -90,7 +104,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ valid: false, canUse: false })
         }
 
-        const keyData = keyResults[0]
+        const keyData = await ensureKeys(keyResults[0])
 
         if (!keyData.is_active) {
           return NextResponse.json({
@@ -119,6 +133,8 @@ export async function POST(request: NextRequest) {
             subscriptionId: keyData.subscription_id,
             createdAt: keyData.created_at,
             updatedAt: keyData.updated_at,
+            publicKey: keyData.public_key,
+            privateKey: keyData.private_key,
           },
         })
 
@@ -186,7 +202,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: "API key not found" }, { status: 404 })
         }
 
-        const emailKeyData = emailResults[0]
+        const emailKeyData = await ensureKeys(emailResults[0])
         return NextResponse.json({
           success: true,
           data: {
@@ -230,7 +246,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "API key not found" }, { status: 404 })
     }
 
-    const keyData = results[0]
+    const keyData = await ensureKeys(results[0])
     return NextResponse.json({
       success: true,
       data: {
@@ -243,6 +259,8 @@ export async function GET(request: NextRequest) {
         subscriptionId: keyData.subscription_id,
         createdAt: keyData.created_at,
         updatedAt: keyData.updated_at,
+        publicKey: keyData.public_key,
+        privateKey: keyData.private_key,
       },
     })
   } catch (error) {

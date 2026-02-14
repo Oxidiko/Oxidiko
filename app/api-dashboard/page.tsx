@@ -491,51 +491,49 @@ export default function APIDashboardPage() {
                     </div>
                   </div>
 
-                  {databaseData?.privateKey && (
-                    <div className="space-y-2">
-                      <Label className="text-white">Private Key (RSA)</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          value={databaseData.privateKey}
-                          readOnly
-                          type="password"
-                          className="bg-gray-800 border-gray-700 text-white font-mono text-sm"
-                        />
-                        <Button
-                          onClick={() => copyToClipboard(databaseData.privateKey)}
-                          size="sm"
-                          className="bg-gray-700 hover:bg-gray-600"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <p className="text-xs text-red-400">
-                        <strong>WARNING:</strong> This is your specialized private key for decrypting user data.
-                        Oxidiko does not use this key; it is provided for your backend to decrypt sensitive fields.
-                        Keep it safe!
-                      </p>
+                  <div className="space-y-2">
+                    <Label className="text-white">Private Key (RSA)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={databaseData?.privateKey || "Not generated yet"}
+                        readOnly
+                        type={databaseData?.privateKey ? "password" : "text"}
+                        className="bg-gray-800 border-gray-700 text-white font-mono text-sm"
+                      />
+                      <Button
+                        onClick={() => copyToClipboard(databaseData?.privateKey || "")}
+                        disabled={!databaseData?.privateKey}
+                        size="sm"
+                        className="bg-gray-700 hover:bg-gray-600"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
                     </div>
-                  )}
+                    <p className="text-xs text-red-400">
+                      <strong>WARNING:</strong> This is your specialized private key for decrypting user data.
+                      Oxidiko does not use this key; it is provided for your backend to decrypt sensitive fields.
+                      Keep it safe!
+                    </p>
+                  </div>
 
-                  {databaseData?.publicKey && (
-                    <div className="space-y-2">
-                      <Label className="text-white">Public Key (RSA)</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          value={databaseData.publicKey}
-                          readOnly
-                          className="bg-gray-800 border-gray-700 text-white font-mono text-sm"
-                        />
-                        <Button
-                          onClick={() => copyToClipboard(databaseData.publicKey)}
-                          size="sm"
-                          className="bg-gray-700 hover:bg-gray-600"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
+                  <div className="space-y-2">
+                    <Label className="text-white">Public Key (RSA)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={databaseData?.publicKey || "Not generated yet"}
+                        readOnly
+                        className="bg-gray-800 border-gray-700 text-white font-mono text-sm"
+                      />
+                      <Button
+                        onClick={() => copyToClipboard(databaseData?.publicKey || "")}
+                        disabled={!databaseData?.publicKey}
+                        size="sm"
+                        className="bg-gray-700 hover:bg-gray-600"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
                     </div>
-                  )}
+                  </div>
 
                   <Alert className="bg-blue-900/20 border-blue-800">
                     <AlertDescription className="text-blue-400">
