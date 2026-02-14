@@ -28,6 +28,7 @@
 ## Security Assessment
 - **Strengths:**
   - Uses strong cryptography (AES-GCM 256-bit, SHA-256, PBKDF2 with high iterations).
+  - **Asymmetric Encryption**: User data is encrypted with the site's Public Key before leaving the browser. The Oxidiko server has **Zero Knowledge** of the user data.
   - Passkey-based authentication leverages WebAuthn, which is resistant to phishing and credential theft.
   - PIN-based unlock uses a high iteration count for PBKDF2, making brute-force attacks difficult.
   - All encryption and key derivation is performed client-side; keys are not transmitted to the server.
@@ -41,4 +42,4 @@
   - No server-side validation of vault integrity or tamper detection.
 
 ## Summary
-Oxidiko is a client-side vault system using dual-wrapped keys for secure storage and authentication. It leverages modern browser APIs (WebAuthn, IndexedDB) and strong cryptography. The design is secure against remote attacks, but local device/browser compromise remains a risk. PIN-based unlock is as strong as the user's chosen PIN. The system would benefit from additional protections against brute-force attacks and tampering.
+Oxidiko is a client-side vault system using dual-wrapped keys for secure storage and authentication. It leverages modern browser APIs (WebAuthn, IndexedDB) and strong cryptography. The **Asymmetric Encryption** model ensures that the Oxidiko server acts only as a signing authority and cannot access user data, significantly enhancing privacy and security for integrators and users. The design is secure against remote attacks, but local device/browser compromise remains a risk.

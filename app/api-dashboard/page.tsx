@@ -41,6 +41,8 @@ interface APIKeyData {
   subscriptionId?: string
   createdAt?: string
   updatedAt?: string
+  publicKey?: string
+  privateKey?: string
 }
 
 export default function APIDashboardPage() {
@@ -356,8 +358,8 @@ export default function APIDashboardPage() {
                             ? "bg-green-900 text-green-400"
                             : "bg-red-900 text-red-400"
                           : databaseData?.isActive
-                          ? "bg-green-900 text-green-400"
-                          : "bg-red-900 text-red-400"
+                            ? "bg-green-900 text-green-400"
+                            : "bg-red-900 text-red-400"
                       }
                     >
                       {validationResult
@@ -365,8 +367,8 @@ export default function APIDashboardPage() {
                           ? "Active"
                           : "Inactive"
                         : databaseData?.isActive
-                        ? "Active"
-                        : "Inactive"}
+                          ? "Active"
+                          : "Inactive"}
                     </Badge>
                   </div>
                 </div>
@@ -472,7 +474,7 @@ export default function APIDashboardPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label>API Key</Label>
+                    <Label className="text-white">API Key</Label>
                     <div className="flex gap-2">
                       <Input
                         value={vaultData?.apiKey || ""}
@@ -489,22 +491,82 @@ export default function APIDashboardPage() {
                     </div>
                   </div>
 
+                  {databaseData?.privateKey && (
+                    <div className="space-y-2">
+                      <Label className="text-white">Private Key (RSA)</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={databaseData.privateKey}
+                          readOnly
+                          type="password"
+                          className="bg-gray-800 border-gray-700 text-white font-mono text-sm"
+                        />
+                        <Button
+                          onClick={() => copyToClipboard(databaseData.privateKey)}
+                          size="sm"
+                          className="bg-gray-700 hover:bg-gray-600"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-red-400">
+                        <strong>WARNING:</strong> This is your specialized private key for decrypting user data.
+                        Oxidiko does not use this key; it is provided for your backend to decrypt sensitive fields.
+                        Keep it safe!
+                      </p>
+                    </div>
+                  )}
+
+                  {databaseData?.publicKey && (
+                    <div className="space-y-2">
+                      <Label className="text-white">Public Key (RSA)</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={databaseData.publicKey}
+                          readOnly
+                          className="bg-gray-800 border-gray-700 text-white font-mono text-sm"
+                        />
+                        <Button
+                          onClick={() => copyToClipboard(databaseData.publicKey)}
+                          size="sm"
+                          className="bg-gray-700 hover:bg-gray-600"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   <Alert className="bg-blue-900/20 border-blue-800">
                     <AlertDescription className="text-blue-400">
-                      Keep your API key secure and never share it publicly. Use it in your server-side code only.
+                      Keep your API key and Private Key secure. Never share them publicly.
+                      The Private Key is used to decrypt the data Oxidiko sends to your backend.
                     </AlertDescription>
                   </Alert>
 
                   <div className="bg-gray-800 p-4 rounded-lg">
                     <h4 className="font-semibold text-white mb-2">Usage Example</h4>
-                    <pre className="text-xs text-gray-300 overflow-x-auto">
-                      {`// Example authentication request
+                    <pre className="text-xs text-gray-300 overflow-x-auto whitespace-pre-wrap">
+                      {`// 1. Client-side Auth
 const authUrl = 'https://oxidiko.com/login?' + 
   'fields=email,name&' +
   'redirect=https://yourapp.com/callback&' +
   'api_key=${vaultData?.apiKey || "your-api-key"}'
 
-window.open(authUrl, 'oxidiko-auth', 'width=400,height=600')`}
+window.open(authUrl, 'oxidiko-auth', 'width=400,height=600')
+
+// 2. Server-side Decryption (Node.js)
+// Received 'token' (JWT) contains encrypted 'data' blob
+const privateKey = process.env.OXIDIKO_PRIVATE_KEY;
+const decrypted = crypto.privateDecrypt(
+  {
+    key: privateKey,
+    padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+    oaepHash: "sha256",
+  },
+  Buffer.from(encryptedData, "base64")
+);
+`}
                     </pre>
                   </div>
                 </CardContent>

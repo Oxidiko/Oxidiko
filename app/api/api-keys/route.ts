@@ -8,14 +8,55 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { action, ...data } = body
 
+    // Helper to generate keys
+    const generateKeyPair = async () => {
+      const { privateKey, publicKey } = await crypto.subtle.generateKey(
+        {
+          name: "RSA-OAEP",
+          modulusLength: 2048,
+          publicExponent: new Uint8Array([1, 0, 1]),
+          hash: "SHA-256",
+        },
+        true,
+        ["encrypt", "decrypt"]
+      )
+
+      const exportedPublic = await crypto.subtle.exportKey("spki", publicKey)
+      const exportedPrivate = await crypto.subtle.exportKey("pkcs8", privateKey)
+
+      const toPem = (buffer: ArrayBuffer, type: string) => {
+        const b64 = Buffer.from(buffer).toString('base64')
+        const chunks = b64.match(/.{1,64}/g)!.join('\n')
+        return `-----BEGIN ${type} KEY-----\n${chunks}\n-----END ${type} KEY-----`
+      }
+
+      return {
+        publicKey: toPem(exportedPublic, "PUBLIC"),
+        privateKey: toPem(exportedPrivate, "PRIVATE")
+      }
+    }
+
     switch (action) {
+      case "migrate":
+        // One-time migration to add columns
+        try {
+          await sql`ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS public_key TEXT`
+          await sql`ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS private_key TEXT`
+          return NextResponse.json({ success: true, message: "Migration successful" })
+        } catch (e: any) {
+          return NextResponse.json({ error: e.message }, { status: 500 })
+        }
+
       case "create":
+        const { publicKey, privateKey } = await generateKeyPair()
+
         await sql`
           INSERT INTO api_keys (
-            api_key, company_name, company_email, quota, plan_id, is_active, subscription_id
+            api_key, company_name, company_email, quota, plan_id, is_active, subscription_id, public_key, private_key
           ) VALUES (
             ${data.apiKey}, ${data.companyName}, ${data.companyEmail}, 
-            ${data.quota}, ${data.planId}, ${data.isActive}, ${data.subscriptionId || null}
+            ${data.quota}, ${data.planId}, ${data.isActive}, ${data.subscriptionId || null},
+            ${publicKey}, ${privateKey}
           )
           ON CONFLICT (api_key) DO UPDATE SET
             company_name = EXCLUDED.company_name,
@@ -24,9 +65,11 @@ export async function POST(request: NextRequest) {
             plan_id = EXCLUDED.plan_id,
             is_active = EXCLUDED.is_active,
             subscription_id = EXCLUDED.subscription_id,
+            public_key = EXCLUDED.public_key,
+            private_key = EXCLUDED.private_key,
             updated_at = CURRENT_TIMESTAMP
         `
-        return NextResponse.json({ success: true })
+        return NextResponse.json({ success: true, publicKey, privateKey })
 
       case "validate":
         const keyResults = await sql`
@@ -55,6 +98,7 @@ export async function POST(request: NextRequest) {
           valid: true,
           canUse,
           quota: keyData.quota,
+          publicKey: keyData.public_key, // Return public key for encryption
           keyData: {
             companyName: keyData.company_name,
             companyEmail: keyData.company_email,
@@ -145,6 +189,8 @@ export async function POST(request: NextRequest) {
             subscriptionId: emailKeyData.subscription_id,
             createdAt: emailKeyData.created_at,
             updatedAt: emailKeyData.updated_at,
+            publicKey: emailKeyData.public_key,
+            privateKey: emailKeyData.private_key,
           },
         })
 

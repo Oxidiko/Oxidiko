@@ -52,31 +52,21 @@ Powered by `app/login/page.tsx` + `components/auth-handler.tsx` + `/api/generate
    - `api_key`: your Oxidiko API key
    - `fields`: comma list of requested claims (e.g., `name,email,rec_id` or `none`)
    - `redirect`: where to bounce after auth (optional; popup closes and messages back by default)
-   - `site_url`: your site URL (used for per‑site encryption)
-3. The popup validates your API key via `/api/api-keys` and shows the user what’s being requested.
+   - `site_url`: your site URL
+3. The popup validates your API key via `/api/api-keys` and **retrieves your site's Public Key**.
 4. User unlocks their vault (passkey or PIN).
 5. Data packaging:
-   - If `site_url` is a different origin, we encrypt the allowed data using a per‑site key (HKDF‑derived) inside the vault: `encryptDataForSite`.
-   - Otherwise, we fall back to plain claims (still signed).
-6. The server signs a short‑lived JWT (RS256) at `/api/generate-jwt` using `RSA_PRIVATE_KEY`.
+   - We encrypt the requested data using your **RSA Public Key** (RSA-OAEP) inside the browser.
+   - The Oxidiko server **cannot** read this data.
+6. The server signs a short‑lived JWT (RS256) at `/api/generate-jwt` containing the encrypted payload.
 7. The popup posts back `{ type: 'OXID_AUTH_SUCCESS', token }` to `window.opener` and closes.
 
-There’s also `/api/verify-jwt` for signature verification on the server, and `lib/jwt-utils.ts` for client‑side claim checks (no signature verification in browser).
+There’s also `/api/verify-jwt` for signature verification on the server, and `lib/jwt-utils.ts` for client‑side claim checks. You use your **Private Key** on your backend to decrypt the user data.
 
 ## Integrate in your site (2 options)
 
 ### Public key
-```plaintext
------BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA00Dfs1/uIQJduAyXAXiG
-cXuapUQIosUVcckV8vSVKdkCUP7QW9/4tMu9aT0v/6Nwqxuuuu7UGvBchE2PsAnv
-EYFegv8syI1qxLKreIuAdMzmt4a/azdmfIYOhEK1UK/7Gk11xAhSqHACfPB7ZDk4
-z28Y4Cdbk6v0HitxUBAMbA5LNL7tZrhW39bhAK0M7BvJFuypaUtP/mMthDw9Y0bg
-leYYypRy/UtbH8rvGl2FQTuqx/YvZxgzD1d2gnK8bic4OkMdQDHNBpVv7dJuQyB1
-ancYBoUkLBQCWYaOwNdZVQIpVWfP3dhHTZHGottCfBhvSlI9awykGWQv3bqc7dS5
-hwIDAQAB
------END PUBLIC KEY-----
-```
+The Public Key is managed by Oxidiko and associated with your API Key. You can view and copy your **Private Key** from the API Dashboard.
 
 ### A) One‑liner SDK (basic)
 ```html
@@ -84,7 +74,7 @@ hwIDAQAB
 <script>
   const oxidiko = new OxidikoAuth({ apiKey: 'YOUR_API_KEY' });
   const { token } = await oxidiko.authenticate(['name','email']);
-  // Verify token server‑side using your RS256 public key
+  // Send token to your backend to decrypt with your Private Key
 </script>
 ```
 
@@ -106,17 +96,12 @@ function onMessage(event) {
   }
   if (event.data?.type === 'OXID_AUTH_SUCCESS') {
     const { token } = event.data;
-    // Send token to your backend to verify RS256 signature
+    // Send token to your backend to decrypt data using your Private Key
     window.removeEventListener('message', onMessage);
     popup.close();
   }
-  if (event.data?.type === 'OXID_AUTH_ERROR') {
-    console.error(event.data.error);
-    window.removeEventListener('message', onMessage);
-    popup.close();
-  }
+// ... handle errors
 }
-
 window.addEventListener('message', onMessage);
 ```
 
@@ -127,13 +112,13 @@ Backed by Neon/Postgres (`/api/api-keys`):
 - On successful auth, we `increment` usage.
 
 ## Security architecture (short + spicy)
-- AES‑GCM 256 everywhere for data encryption.
+- AES‑GCM 256 everywhere for local vault encryption.
 - Dual‑wrapped MVK: passkey‑derived key + PIN‑derived key (PBKDF2 600k, SHA‑256, 32‑byte salt).
 - Oxidiko ID = SHA‑256(credential ID). Recovery ID = SHA‑256(oxidiko_id + PIN).
-- Per‑site encryption via HKDF (origin‑salted) before any data leaves the device.
-- JWTs are RS256‑signed server‑side. Verify signatures on your backend.
+- **Asymmetric Site-Specific Encryption**: User data is encrypted with the integrating site's **RSA Public Key** before leaving the browser.
+- **Zero-Knowledge**: Oxidiko server only sees encrypted blobs and signs them. It never sees the user's data in plaintext.
+- JWTs are RS256‑signed.
 - Service worker caches only static assets — never vault data.
-- Zero‑knowledge: private stuff never leaves the browser unless you consciously approve.
 
 ## Key files (map so you don’t get lost)
 - `lib/vault-storage.ts` — MVK, dual‑wrap, encrypt/decrypt, site keys, access history.

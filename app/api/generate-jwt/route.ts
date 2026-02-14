@@ -14,12 +14,13 @@ export async function POST(req: NextRequest) {
 
     let payload: any
 
-    // Check if this is encrypted data (new siteKey format)
-    if (body.encrypted && body.iv) {
+    // Check if this is encrypted data (new siteKey format or RSA)
+    if (body.encrypted) {
       // For encrypted data, we create a JWT with the encrypted payload
       payload = {
         encrypted: body.encrypted,
-        iv: body.iv,
+        // iv is optional for RSA-OAEP, required for AES-GCM
+        ...(body.iv ? { iv: body.iv } : {}),
         type: "encrypted",
       }
     } else {
@@ -42,10 +43,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Subject (sub) is required for plain data" }, { status: 400 })
     }
 
-   if (!RSA_PRIVATE_KEY || RSA_PRIVATE_KEY.length < 100) {
-     console.error("RSA_PRIVATE_KEY is missing or invalid")
-     return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
-   }
+    if (!RSA_PRIVATE_KEY || RSA_PRIVATE_KEY.length < 100) {
+      console.error("RSA_PRIVATE_KEY is missing or invalid")
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
+    }
 
     // Sign JWT using jsonwebtoken (Node.js only)
     const token = jwt.sign(finalPayload, RSA_PRIVATE_KEY, { algorithm: "RS256" })

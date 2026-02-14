@@ -104,7 +104,7 @@ sequenceDiagram
     Site->>Pop: postMessage({ api_key, fields, site_url })
 
     Pop->>S: POST /api/api-keys (Validate Key)
-    S-->>Pop: OK (Quota/Name)
+    S-->>Pop: OK (Returns Public Key)
     
     Pop->>Pop: Show Requested Fields to User
     
@@ -117,27 +117,19 @@ sequenceDiagram
     Pop->>Pop: User Clicks "Allow"
     
     rect rgb(30, 40, 30)
-        Note over Pop: Per-Site Encryption (Isolation)
-        Pop->>DB: Fetch Wrapped Site Key
-        alt Key exists
-            Pop->>Pop: Unwrap Site Key using MVK
-        else New Site
-            Pop->>Pop: Generate 128-bit Random Seed
-            Pop->>Pop: HKDF(Seed, Salt: Origin, Info: "oxidiko-site-key")
-            Pop->>Pop: Store Wrapped Site Key (AES-GCM/MVK)
-        end
-        Pop->>Pop: Encrypt Data with Site Key
+        Note over Pop: Asymmetric Encryption (Zero-Knowledge)
+        Pop->>Pop: Import Site's Public Key
+        Pop->>Pop: Encrypt Data with Public Key (RSA-OAEP)
     end
     
-    Pop->>S: POST /api/generate-jwt (Encrypted Data)
+    Pop->>S: POST /api/generate-jwt (Encrypted BLOB)
     S->>S: Sign with RSA Private Key
-    S-->>Pop: signed_token (JWT)
+    S-->>Pop: signed_token (JWT with Encrypted Payload)
     
     Pop->>Site: postMessage({ type: 'OXID_AUTH_SUCCESS', token })
     Pop->>Pop: window.close()
     
-    Site->>Site: Send token to Backend
-    Site->>S: [Optional] POST /api/verify-jwt
+    Site->>Site: Decrypt Payload with Site's Private Key
 ```
 
 ---

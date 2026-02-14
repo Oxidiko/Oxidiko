@@ -67,11 +67,11 @@ const derivePasskeyKey = async (signature: ArrayBuffer): Promise<CryptoKey> => {
 const generateSiteKey = async (siteOrigin: string): Promise<CryptoKey> => {
   // Generate a random 128-bit key
   const randomKey = crypto.getRandomValues(new Uint8Array(16))
-  
+
   // Use HKDF to derive site-specific key
   const encoder = new TextEncoder()
   const salt = encoder.encode(siteOrigin)
-  
+
   // Import the random key for HKDF
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -80,7 +80,7 @@ const generateSiteKey = async (siteOrigin: string): Promise<CryptoKey> => {
     false,
     ["deriveKey"]
   )
-  
+
   // Derive the site-specific key
   return crypto.subtle.deriveKey(
     {
@@ -137,13 +137,13 @@ const decryptData = async (encrypted: ArrayBuffer, mvk: CryptoKey, iv: Uint8Arra
 const encryptDataWithSiteKey = async (data: any, siteKey: CryptoKey): Promise<{ encrypted: string; iv: string }> => {
   const encoder = new TextEncoder()
   const iv = crypto.getRandomValues(new Uint8Array(12))
-  
+
   const encrypted = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv: iv },
     siteKey,
     encoder.encode(JSON.stringify(data))
   )
-  
+
   return {
     encrypted: Array.from(new Uint8Array(encrypted)).map(b => b.toString(16).padStart(2, '0')).join(''),
     iv: Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join('')
@@ -246,11 +246,11 @@ export const createVault = async (
   }
 
   await storeData(PROFILE_KEY, vaultData)
-  
+
   // Initialize empty site keys and access records
   await storeData(SITE_KEYS_KEY, {})
   await storeData(SITE_ACCESS_KEY, {})
-  
+
   currentProfile = profileData
   currentOxidikoId = oxidikoId
   currentMVK = mvk
@@ -452,7 +452,7 @@ export const getSiteKey = async (siteOrigin: string): Promise<CryptoKey> => {
         currentMVK,
         new Uint8Array(encryptedKeyData.iv)
       )
-      
+
       return crypto.subtle.importKey(
         "raw",
         new Uint8Array(keyData),
@@ -463,18 +463,18 @@ export const getSiteKey = async (siteOrigin: string): Promise<CryptoKey> => {
     } else {
       // Generate new site key
       const siteKey = await generateSiteKey(validatedOrigin)
-      
+
       // Export and encrypt the key for storage
       const keyData = await crypto.subtle.exportKey("raw", siteKey)
       const { encrypted, iv } = await encryptData(Array.from(new Uint8Array(keyData)), currentMVK)
-      
+
       // Store the encrypted key
       siteKeys[validatedOrigin] = {
         encrypted: Array.from(new Uint8Array(encrypted)),
         iv: Array.from(iv),
         created_at: Date.now()
       }
-      
+
       await storeData(SITE_KEYS_KEY, siteKeys)
       return siteKey
     }
@@ -492,8 +492,8 @@ export const encryptDataForSite = async (data: any, siteOrigin: string): Promise
 
 // Record site access with encrypted data and site key
 export const recordSiteAccess = async (
-  siteOrigin: string, 
-  fields: string[], 
+  siteOrigin: string,
+  fields: string[],
   encryptedData: { encrypted: string; iv: string },
   redirectUrl?: string
 ): Promise<void> => {
@@ -641,4 +641,49 @@ export const obliterateVault = async (): Promise<void> => {
       })
       .catch(reject)
   })
+}
+// Import RSA Public Key (SPKI)
+export const importPublicKey = async (pem: string): Promise<CryptoKey> => {
+  try {
+    // Remove headers and newlines
+    const pemHeader = "-----BEGIN PUBLIC KEY-----"
+    const pemFooter = "-----END PUBLIC KEY-----"
+    const pemContents = pem.substring(pem.indexOf(pemHeader) + pemHeader.length, pem.indexOf(pemFooter))
+    // base64 decode
+    const binaryDerString = window.atob(pemContents.replace(/\s/g, ''))
+    const binaryDer = new Uint8Array(binaryDerString.length)
+    for (let i = 0; i < binaryDerString.length; i++) {
+      binaryDer[i] = binaryDerString.charCodeAt(i)
+    }
+
+    return await crypto.subtle.importKey(
+      "spki",
+      binaryDer.buffer,
+      {
+        name: "RSA-OAEP",
+        hash: "SHA-256",
+      },
+      true,
+      ["encrypt"]
+    )
+  } catch (e) {
+    console.error("Error importing public key:", e)
+    throw new Error("Invalid Public Key")
+  }
+}
+
+// Encrypt data with RSA Public Key
+export const encryptDataWithPublicKey = async (data: any, publicKey: CryptoKey): Promise<string> => {
+  const encoder = new TextEncoder()
+  const encodedData = encoder.encode(JSON.stringify(data))
+
+  const encrypted = await crypto.subtle.encrypt(
+    {
+      name: "RSA-OAEP",
+    },
+    publicKey,
+    encodedData
+  )
+
+  return btoa(String.fromCharCode(...new Uint8Array(encrypted)))
 }

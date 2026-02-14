@@ -195,7 +195,7 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
 
       const allowedData: any = {
         sub: oxidikoId,
-        oxidiko_id: oxidikoId,
+        oxidiko_id: oxidikoId, // legacy/duplicate for ease
         rec_id: recId,
       }
 
@@ -208,8 +208,26 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
         })
       }
 
+      // Check if we have an API key to fetch the Public Key
+      let publicKeyPem: string | null = null
+      if (apiKey) {
+        try {
+          const validateResponse = await fetch("/api/api-keys", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "validate", apiKey }),
+          })
+          const validateData = await validateResponse.json()
+          if (validateData.valid && validateData.publicKey) {
+            publicKeyPem = validateData.publicKey
+          }
+        } catch (e) {
+          console.error("Failed to fetch public key:", e)
+        }
+      }
+
       console.log("Preparing to generate JWT with data:", {
-        hasEncryption: !!siteUrl,
+        hasEncryption: !!publicKeyPem,
         siteUrl,
         fields: requestedFields,
         dataKeys: Object.keys(allowedData),
@@ -217,10 +235,31 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
 
       let jwtPayload: any
 
-      // Try to use siteKey encryption if we have a site URL and it's different from current origin
-      if (siteUrl && siteUrl !== window.location.origin) {
+      // Use Asymmetric Encryption if Public Key is available
+      if (publicKeyPem) {
         try {
-          console.log("Attempting siteKey encryption for:", siteUrl)
+          console.log("Encrypting data with Public Key...")
+          const { importPublicKey, encryptDataWithPublicKey } = await import("@/lib/vault-storage")
+          const socketKey = await importPublicKey(publicKeyPem)
+          const encryptedData = await encryptDataWithPublicKey(allowedData, socketKey)
+
+          jwtPayload = {
+            encrypted: encryptedData,
+            // No IV for RSA-OAEP
+          }
+          console.log("Successfully encrypted data with Public Key")
+        } catch (err) {
+          console.error("Encryption failed:", err)
+          // Fallback to plain if encryption fails? Or error out? 
+          // Better to error out if encryption was expected, but for now we might fallback or just throw.
+          // Let's throw to be safe - don't send plain data if encryption was attempted.
+          throw new Error("Failed to encrypt data with Public Key")
+        }
+      } else if (siteUrl && siteUrl !== window.location.origin) {
+        // Fallback to old symmetric siteKey logic if no Public Key but siteUrl is present
+        // (This might be deprecated but keeping for compatibility if needed, though we prefer RSA now)
+        try {
+          console.log("Attempting legacy siteKey encryption for:", siteUrl)
           const encryptedData = await encryptDataForSite(allowedData, siteUrl)
           await recordSiteAccess(siteUrl, requestedFields, encryptedData, redirectUrl)
 
@@ -228,13 +267,13 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
             encrypted: encryptedData.encrypted,
             iv: encryptedData.iv,
           }
-          console.log("Successfully encrypted data for site")
+          console.log("Successfully encrypted data for site (legacy)")
         } catch (encryptError) {
           console.error("Encryption failed, using plain data:", encryptError)
           jwtPayload = allowedData
         }
       } else {
-        console.log("Using plain data (no siteUrl or same origin)")
+        console.log("Using plain data (no Public Key or siteUrl/same origin)")
         jwtPayload = allowedData
       }
 

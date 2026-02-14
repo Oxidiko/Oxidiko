@@ -159,39 +159,81 @@ export default function DemoPage() {
     }, 1000)
   }
 
+  const [privateKey, setPrivateKey] = useState("")
+
+  const importPrivateKey = async (pem: string) => {
+    try {
+      // Remove headers and newlines
+      const pemHeader = "-----BEGIN PRIVATE KEY-----"
+      const pemFooter = "-----END PRIVATE KEY-----"
+      const pemContents = pem.substring(pem.indexOf(pemHeader) + pemHeader.length, pem.indexOf(pemFooter))
+      // base64 decode
+      const binaryDerString = window.atob(pemContents.replace(/\s/g, ''))
+      const binaryDer = new Uint8Array(binaryDerString.length)
+      for (let i = 0; i < binaryDerString.length; i++) {
+        binaryDer[i] = binaryDerString.charCodeAt(i)
+      }
+
+      return await window.crypto.subtle.importKey(
+        "pkcs8",
+        binaryDer.buffer,
+        {
+          name: "RSA-OAEP",
+          hash: "SHA-256",
+        },
+        true,
+        ["decrypt"]
+      )
+    } catch (e) {
+      console.error("Error importing private key:", e)
+      throw new Error("Invalid Private Key format")
+    }
+  }
+
+  const decryptData = async (encryptedBase64: string, key: CryptoKey) => {
+    try {
+      const encryptedData = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0))
+      const decryptedBuffer = await window.crypto.subtle.decrypt(
+        {
+          name: "RSA-OAEP",
+        },
+        key,
+        encryptedData
+      )
+
+      const decoder = new TextDecoder()
+      return JSON.parse(decoder.decode(decryptedBuffer))
+    } catch (e) {
+      console.error("Decryption failed:", e)
+      throw new Error("Decryption failed. Check your Private Key.")
+    }
+  }
+
   const verifyToken = async (tokenToVerify: string) => {
     try {
       console.log("Verifying token...")
-      // First try to verify the JWT claims
+      // First try to verify the JWT claims (signature check)
       const payload = await verifyJWTClaimsOnly(tokenToVerify)
       console.log("Token payload:", payload)
 
-      // Check if the data is encrypted with siteKey (new format)
-      if (payload.encrypted && payload.iv) {
-        console.log("Token contains encrypted data, attempting to decrypt...")
-        try {
-          // Try to decrypt with siteKey from vault
-          const response = await fetch("/api/verify-jwt", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              token: tokenToVerify,
-              decrypt: true,
-            }),
-          })
+      // Check if the data is encrypted
+      if (payload.encrypted) {
+        console.log("Token contains encrypted data.")
 
-          if (response.ok) {
-            const decryptedResult = await response.json()
-            console.log("Decryption result:", decryptedResult)
-            setUserData(decryptedResult.payload)
-          } else {
-            console.warn("Decryption failed, showing encrypted payload")
-            // Fallback: show the encrypted payload
-            setUserData(payload)
+        if (privateKey) {
+          try {
+            console.log("Attempting to decrypt with provided Private Key...")
+            const key = await importPrivateKey(privateKey)
+            const decrypted = await decryptData(payload.encrypted, key)
+            console.log("Decryption successful:", decrypted)
+            setUserData({ ...decrypted, ...payload }) // Merge decrypted data with public claims like exp/iat
+          } catch (err: any) {
+            console.warn("Decryption failed:", err.message)
+            setError("Token valid, but decryption failed: " + err.message)
+            setUserData(payload) // Show encrypted payload
           }
-        } catch (decryptError) {
-          console.warn("Failed to decrypt with siteKey, showing encrypted data:", decryptError)
-          // Show the encrypted payload as fallback
+        } else {
+          console.log("No private key provided, showing encrypted payload")
           setUserData(payload)
         }
       } else {
@@ -199,7 +241,7 @@ export default function DemoPage() {
         console.log("Token contains plain data")
         setUserData(payload)
       }
-      setError("")
+      // setError("") // Don't clear error here if decryption failed
     } catch (err: any) {
       console.error("Token verification error:", err)
       setError(err.message || "Invalid or expired token")
@@ -313,6 +355,31 @@ export default function DemoPage() {
                       <a href="/api-dashboard" className="text-blue-400 hover:underline">
                         API Dashboard
                       </a>
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="private-key" className="text-gray-300">
+                      Private Key (Optional - for Decryption)
+                    </Label>
+                    <Input
+                      id="private-key"
+                      type="password"
+                      placeholder="Paste your Private Key (PEM format)..."
+                      value={privateKey}
+                      onChange={(e) => {
+                        setPrivateKey(e.target.value);
+                        // If we already have a token, re-verify to attempt decryption
+                        if (token) {
+                          // We can't call verifyToken directly easily here due to stale closure if we didn't wrap it, 
+                          // but the user can click "Verify Token".
+                          // Actually, let's just set it.
+                        }
+                      }}
+                      className="bg-gray-800 border-gray-700 text-white placeholder-gray-500 font-mono text-xs"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Paste the Private Key from the dashboard to simulate backend decryption.
                     </p>
                   </div>
                 </CardContent>
