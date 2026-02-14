@@ -672,8 +672,13 @@ export const importPublicKey = async (pem: string): Promise<CryptoKey> => {
   }
 }
 
-const bufferToBase64 = (buffer: ArrayBuffer): string => {
-  return window.btoa(String.fromCharCode(...new Uint8Array(buffer)))
+const bufferToBase64 = (buffer: ArrayBuffer | ArrayBufferView): string => {
+  const bytes = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+  let binary = ""
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return window.btoa(binary)
 }
 
 // Encrypt data with Hybrid Encryption (RSA + AES)
@@ -706,5 +711,7 @@ export const encryptDataWithPublicKey = async (data: any, rssPublicKey: CryptoKe
   )
 
   // 5. Package as base64 strings: WrappedKey.IV.EncryptedData
-  return `${bufferToBase64(wrappedKey)}.${bufferToBase64(iv)}.${bufferToBase64(encryptedData)}`
+  const result = `${bufferToBase64(wrappedKey)}.${bufferToBase64(iv)}.${bufferToBase64(encryptedData)}`
+  console.log("Generated hybrid payload. Parts:", result.split('.').length, "Total length:", result.length)
+  return result
 }

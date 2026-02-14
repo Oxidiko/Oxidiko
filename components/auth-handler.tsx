@@ -274,6 +274,10 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
       }
 
       console.log("Final jwtPayload keys:", Object.keys(jwtPayload))
+      if (jwtPayload.encrypted && typeof jwtPayload.encrypted === 'string') {
+        console.log("Encrypted payload sample:", jwtPayload.encrypted.substring(0, 20) + "...")
+        console.log("Encrypted payload dots:", jwtPayload.encrypted.split('.').length - 1)
+      }
 
       console.log("Calling JWT generation API with payload type:", jwtPayload.encrypted ? "encrypted" : "plain")
 

@@ -209,6 +209,10 @@ export default function DemoPage() {
     try {
       console.log("Starting hybrid decryption for payload length:", payload.length)
       const parts = payload.split('.')
+      console.log("Parts found:", parts.length)
+      if (payload.length > 20) {
+        console.log("Payload snippet:", payload.substring(0, 10) + "..." + payload.substring(payload.length - 10))
+      }
 
       if (parts.length === 3) {
         // Hybrid Format: WrappedKey.IV.Data
