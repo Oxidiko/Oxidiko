@@ -55,7 +55,7 @@ export default function APIDashboardPage() {
   const [error, setError] = useState("")
   const [vaultData, setVaultData] = useState<any>(null)
   const [databaseData, setDatabaseData] = useState<APIKeyData | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [validationResult, setValidationResult] = useState<{ valid: boolean; canUse: boolean } | null>(null)
 
@@ -150,11 +150,11 @@ export default function APIDashboardPage() {
     }
   }
 
-  const copyToClipboard = async (text: string) => {
+  const copyToClipboard = async (text: string, id: string) => {
     try {
       await navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      setCopied(id)
+      setTimeout(() => setCopied(null), 2000)
     } catch (err) {
       console.error("Failed to copy:", err)
     }
@@ -482,11 +482,11 @@ export default function APIDashboardPage() {
                         className="bg-gray-800 border-gray-700 text-white font-mono text-sm"
                       />
                       <Button
-                        onClick={() => copyToClipboard(vaultData?.apiKey || "")}
+                        onClick={() => copyToClipboard(vaultData?.apiKey || "", "api")}
                         size="sm"
                         className="bg-gray-700 hover:bg-gray-600"
                       >
-                        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        {copied === "api" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                       </Button>
                     </div>
                   </div>
@@ -501,12 +501,12 @@ export default function APIDashboardPage() {
                         className="bg-gray-800 border-gray-700 text-white font-mono text-sm"
                       />
                       <Button
-                        onClick={() => copyToClipboard(databaseData?.privateKey || "")}
+                        onClick={() => copyToClipboard(databaseData?.privateKey || "", "private")}
                         disabled={!databaseData?.privateKey}
                         size="sm"
                         className="bg-gray-700 hover:bg-gray-600"
                       >
-                        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        {copied === "private" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                       </Button>
                     </div>
                     <p className="text-xs text-red-400">
@@ -525,12 +525,12 @@ export default function APIDashboardPage() {
                         className="bg-gray-800 border-gray-700 text-white font-mono text-sm"
                       />
                       <Button
-                        onClick={() => copyToClipboard(databaseData?.publicKey || "")}
+                        onClick={() => copyToClipboard(databaseData?.publicKey || "", "public")}
                         disabled={!databaseData?.publicKey}
                         size="sm"
                         className="bg-gray-700 hover:bg-gray-600"
                       >
-                        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        {copied === "public" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                       </Button>
                     </div>
                   </div>
@@ -554,16 +554,22 @@ const authUrl = 'https://oxidiko.com/login?' +
 window.open(authUrl, 'oxidiko-auth', 'width=400,height=600')
 
 // 2. Server-side Decryption (Node.js)
-// Received 'token' (JWT) contains encrypted 'data' blob
-const privateKey = process.env.OXIDIKO_PRIVATE_KEY;
-const decrypted = crypto.privateDecrypt(
+// Received 'token' (JWT) contains 'encrypted' field: "WrappedKey.IV.Data"
+const [wrappedKey, iv, data] = token.encrypted.split('.');
+
+// 1. Decrypt the AES key with your Private Key (RSA)
+const aesKey = crypto.privateDecrypt(
   {
-    key: privateKey,
+    key: process.env.OXIDIKO_PRIVATE_KEY,
     padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
     oaepHash: "sha256",
   },
-  Buffer.from(encryptedData, "base64")
+  Buffer.from(wrappedKey, 'base64')
 );
+
+// 2. Decrypt the profile data with the AES key (AES-GCM)
+const decipher = crypto.createDecipheriv('aes-256-gcm', aesKey, Buffer.from(iv, 'base64'));
+// ... continue with standard decipher.update() and .final()
 `}
                     </pre>
                   </div>

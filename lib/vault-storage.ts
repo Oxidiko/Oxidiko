@@ -672,23 +672,45 @@ export const importPublicKey = async (pem: string): Promise<CryptoKey> => {
   }
 }
 
-// Encrypt data with RSA Public Key
-export const encryptDataWithPublicKey = async (data: any, publicKey: CryptoKey): Promise<string> => {
+// Helper to convert ArrayBuffer to Base64
+const bufferToBase64 = (buffer: ArrayBuffer): string => {
+  const bytes = new Uint8Array(buffer)
+  let binary = ""
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return window.btoa(binary)
+}
+
+// Encrypt data with Hybrid Encryption (RSA + AES)
+export const encryptDataWithPublicKey = async (data: any, rssPublicKey: CryptoKey): Promise<string> => {
+  // 1. Generate a random AES-GCM key for data encryption
+  const aesKey = await window.crypto.subtle.generateKey(
+    { name: "AES-GCM", length: 256 },
+    true,
+    ["encrypt"]
+  )
+
+  // 2. Generate a random IV
+  const iv = window.crypto.getRandomValues(new Uint8Array(12))
+
+  // 3. Encrypt the data with the AES key
   const encoder = new TextEncoder()
   const encodedData = encoder.encode(JSON.stringify(data))
-
-  const encrypted = await crypto.subtle.encrypt(
-    {
-      name: "RSA-OAEP",
-    },
-    publicKey,
+  const encryptedData = await window.crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    aesKey,
     encodedData
   )
 
-  const encryptedArray = new Uint8Array(encrypted)
-  let binary = ""
-  for (let i = 0; i < encryptedArray.byteLength; i++) {
-    binary += String.fromCharCode(encryptedArray[i])
-  }
-  return window.btoa(binary)
+  // 4. Wrap (encrypt) the AES key with the RSA Public Key
+  const exportedAesKey = await window.crypto.subtle.exportKey("raw", aesKey)
+  const wrappedKey = await window.crypto.subtle.encrypt(
+    { name: "RSA-OAEP" },
+    rssPublicKey,
+    exportedAesKey
+  )
+
+  // 5. Package as base64 strings: WrappedKey.IV.EncryptedData
+  return `${bufferToBase64(wrappedKey)}.${bufferToBase64(iv)}.${bufferToBase64(encryptedData)}`
 }

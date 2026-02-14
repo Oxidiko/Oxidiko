@@ -190,19 +190,59 @@ export default function DemoPage() {
     }
   }
 
-  const decryptData = async (encryptedBase64: string, key: CryptoKey) => {
-    try {
-      const encryptedData = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0))
-      const decryptedBuffer = await window.crypto.subtle.decrypt(
-        {
-          name: "RSA-OAEP",
-        },
-        key,
-        encryptedData
-      )
+  const base64ToBuffer = (base64: string): ArrayBuffer => {
+    const binary = window.atob(base64)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i)
+    }
+    return bytes.buffer
+  }
 
-      const decoder = new TextDecoder()
-      return JSON.parse(decoder.decode(decryptedBuffer))
+  const decryptData = async (payload: string, key: CryptoKey) => {
+    try {
+      const parts = payload.split('.')
+
+      if (parts.length === 3) {
+        // Hybrid Format: WrappedKey.IV.Data
+        const [wrappedKeyB64, ivB64, dataB64] = parts
+
+        // 1. Decrypt (unwrap) the AES key using RSA
+        const aesKeyBuffer = await window.crypto.subtle.decrypt(
+          { name: "RSA-OAEP" },
+          key,
+          base64ToBuffer(wrappedKeyB64)
+        )
+
+        // 2. Import the decrypted AES key
+        const aesKey = await window.crypto.subtle.importKey(
+          "raw",
+          aesKeyBuffer,
+          { name: "AES-GCM" },
+          false,
+          ["decrypt"]
+        )
+
+        // 3. Decrypt the data using AES
+        const decryptedBuffer = await window.crypto.subtle.decrypt(
+          { name: "AES-GCM", iv: new Uint8Array(base64ToBuffer(ivB64)) },
+          aesKey,
+          base64ToBuffer(dataB64)
+        )
+
+        const decoder = new TextDecoder()
+        return JSON.parse(decoder.decode(decryptedBuffer))
+      } else {
+        // Legacy RSA-only format
+        const encryptedData = base64ToBuffer(payload)
+        const decryptedBuffer = await window.crypto.subtle.decrypt(
+          { name: "RSA-OAEP" },
+          key,
+          encryptedData
+        )
+        const decoder = new TextDecoder()
+        return JSON.parse(decoder.decode(decryptedBuffer))
+      }
     } catch (e) {
       console.error("Decryption failed:", e)
       throw new Error("Decryption failed. Check your Private Key.")
