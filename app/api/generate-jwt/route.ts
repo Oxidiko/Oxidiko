@@ -12,20 +12,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 })
     }
 
-    let payload: any
-
-    // Check if this is encrypted data (new siteKey format or RSA)
-    if (body.encrypted) {
-      // For encrypted data, we create a JWT with the encrypted payload
-      payload = {
-        encrypted: body.encrypted,
-        // iv is optional for RSA-OAEP, required for AES-GCM
-        ...(body.iv ? { iv: body.iv } : {}),
-        type: "encrypted",
-      }
-    } else {
-      // For plain data (fallback or old format)
-      payload = { ...body }
+    // Use body as base payload, add standard claims later
+    const payload = {
+      ...body,
+      type: body.encrypted ? "encrypted" : "plain"
     }
 
     // Add standard claims

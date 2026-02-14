@@ -226,19 +226,15 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
         }
       }
 
-      console.log("Preparing to generate JWT with data:", {
-        hasEncryption: !!publicKeyPem,
-        siteUrl,
-        fields: requestedFields,
-        profileFields: Object.keys(profileData),
-      })
+      console.log("Preparing to generate JWT. apiKey present:", !!apiKey)
+      console.log("Profile data to encrypt:", Object.keys(profileData))
 
       let jwtPayload: any
 
       // Use Asymmetric Encryption if Public Key is available
       if (publicKeyPem) {
         try {
-          console.log("Encrypting profile data with Public Key...")
+          console.log("Using Asymmetric (RSA) encryption with public key...")
           const { importPublicKey, encryptDataWithPublicKey } = await import("@/lib/vault-storage")
           const socketKey = await importPublicKey(publicKeyPem)
 
@@ -248,12 +244,12 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
           jwtPayload = {
             ...identityClaims,
             encrypted: encryptedBlob,
-            // No IV for RSA-OAEP
+            // No IV for RSA-OAEP (Hybrid IV is inside the blob)
           }
-          console.log("Successfully encrypted profile data with Public Key")
-        } catch (err) {
-          console.error("Encryption failed:", err)
-          throw new Error("Failed to encrypt data with Public Key. The profile data might be too large for RSA-OAEP 2048.")
+          console.log("Successfully generated hybrid-encrypted payload")
+        } catch (err: any) {
+          console.error("RSA Encryption failed:", err)
+          throw new Error("Failed to encrypt data with Public Key. " + err.message)
         }
       } else if (siteUrl && siteUrl !== window.location.origin) {
         // Fallback to old symmetric siteKey logic
@@ -267,15 +263,17 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
             encrypted: encryptedData.encrypted,
             iv: encryptedData.iv,
           }
-          console.log("Successfully encrypted data for site (legacy)")
+          console.log("Successfully generated legacy symmetric-encrypted payload")
         } catch (encryptError) {
-          console.error("Encryption failed, using plain data:", encryptError)
+          console.error("Legacy encryption failed:", encryptError)
           jwtPayload = { ...identityClaims, ...profileData }
         }
       } else {
         console.log("Using plain data (no Public Key or siteUrl/same origin)")
         jwtPayload = { ...identityClaims, ...profileData }
       }
+
+      console.log("Final jwtPayload keys:", Object.keys(jwtPayload))
 
       console.log("Calling JWT generation API with payload type:", jwtPayload.encrypted ? "encrypted" : "plain")
 

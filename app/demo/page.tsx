@@ -191,28 +191,39 @@ export default function DemoPage() {
   }
 
   const base64ToBuffer = (base64: string): ArrayBuffer => {
-    const binary = window.atob(base64)
-    const bytes = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i)
+    try {
+      const cleanedB64 = base64.replace(/\s/g, '')
+      const binary = window.atob(cleanedB64)
+      const bytes = new Uint8Array(binary.length)
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i)
+      }
+      return bytes.buffer
+    } catch (e) {
+      console.error("Base64 decoding failed for string length:", base64.length)
+      throw e
     }
-    return bytes.buffer
   }
 
   const decryptData = async (payload: string, key: CryptoKey) => {
     try {
+      console.log("Starting hybrid decryption for payload length:", payload.length)
       const parts = payload.split('.')
 
       if (parts.length === 3) {
         // Hybrid Format: WrappedKey.IV.Data
         const [wrappedKeyB64, ivB64, dataB64] = parts
+        console.log("Hybrid parts found. Wrapping key length:", wrappedKeyB64.length)
 
         // 1. Decrypt (unwrap) the AES key using RSA
         const aesKeyBuffer = await window.crypto.subtle.decrypt(
-          { name: "RSA-OAEP" },
+          {
+            name: "RSA-OAEP",
+          },
           key,
           base64ToBuffer(wrappedKeyB64)
         )
+        console.log("AES key unwrapped successfully")
 
         // 2. Import the decrypted AES key
         const aesKey = await window.crypto.subtle.importKey(
@@ -229,23 +240,28 @@ export default function DemoPage() {
           aesKey,
           base64ToBuffer(dataB64)
         )
+        console.log("Profile data decrypted successfully")
 
         const decoder = new TextDecoder()
-        return JSON.parse(decoder.decode(decryptedBuffer))
+        const decodedString = decoder.decode(decryptedBuffer)
+        return JSON.parse(decodedString)
       } else {
+        console.log("Legacy RSA-only format detected (parts !== 3)")
         // Legacy RSA-only format
         const encryptedData = base64ToBuffer(payload)
         const decryptedBuffer = await window.crypto.subtle.decrypt(
-          { name: "RSA-OAEP" },
+          {
+            name: "RSA-OAEP",
+          },
           key,
           encryptedData
         )
         const decoder = new TextDecoder()
         return JSON.parse(decoder.decode(decryptedBuffer))
       }
-    } catch (e) {
-      console.error("Decryption failed:", e)
-      throw new Error("Decryption failed. Check your Private Key.")
+    } catch (e: any) {
+      console.error("Decryption operation failed:", e)
+      throw new Error(`Decryption failed: ${e.message}. Check your Private Key.`)
     }
   }
 

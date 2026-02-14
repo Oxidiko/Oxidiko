@@ -11,37 +11,49 @@ export default function LoginPage() {
   const [apiError, setApiError] = useState<string>("")
 
   useEffect(() => {
+    const handleApiKey = async (providedApiKey: string) => {
+      setApiKey(providedApiKey)
+      try {
+        const validation = await validateAPIKey(providedApiKey)
+        if (!validation.valid) {
+          setApiError("Invalid API key. Please check your API key and try again.")
+          return false
+        }
+        if (!validation.canUse) {
+          const quotaInfo = validation.quota ? ` Current quota: ${validation.quota}` : ""
+          setApiError(`API key quota exceeded or inactive.${quotaInfo} Please upgrade your plan or contact support.`)
+          return false
+        }
+        return true
+      } catch (err) {
+        console.error("API key validation error:", err)
+        setApiError("Failed to validate API key. Please try again or contact support.")
+        return false
+      }
+    }
+
+    const initFromUrl = async () => {
+      const urlParams = new URLSearchParams(window.location.search)
+      const urlApiKey = urlParams.get("api_key")
+      const urlFields = urlParams.get("fields")
+
+      if (urlApiKey) {
+        await handleApiKey(urlApiKey)
+      }
+      if (urlFields) {
+        setFields(urlFields)
+      }
+    }
+
+    initFromUrl()
+
     // Listen for configuration from parent window
     const messageListener = async (event: MessageEvent) => {
-      // Only accept messages from the window that opened this popup TODO
       console.log("Login page received message:", event.data)
-
       if (event.data.api_key || event.data.fields) {
         if (event.data.api_key) {
-          const providedApiKey = event.data.api_key
-          setApiKey(providedApiKey)
-
-          try {
-            const validation = await validateAPIKey(providedApiKey)
-            if (!validation.valid) {
-              setApiError("Invalid API key. Please check your API key and try again.")
-              return
-            }
-            if (!validation.canUse) {
-              const quotaInfo = validation.quota ? ` Current quota: ${validation.quota}` : ""
-              setApiError(`API key quota exceeded or inactive.${quotaInfo} Please upgrade your plan or contact support.`)
-              return
-            }
-          } catch (err) {
-            console.error("API key validation error:", err)
-            setApiError("Failed to validate API key. Please try again or contact support.")
-            return
-          }
-        } else {
-          setApiError("API key is required. Please provide a valid api_key parameter.")
-          return
+          await handleApiKey(event.data.api_key)
         }
-
         if (event.data.fields) {
           setFields(event.data.fields)
         }

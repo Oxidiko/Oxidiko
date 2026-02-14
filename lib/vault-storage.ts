@@ -672,14 +672,8 @@ export const importPublicKey = async (pem: string): Promise<CryptoKey> => {
   }
 }
 
-// Helper to convert ArrayBuffer to Base64
 const bufferToBase64 = (buffer: ArrayBuffer): string => {
-  const bytes = new Uint8Array(buffer)
-  let binary = ""
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i])
-  }
-  return window.btoa(binary)
+  return window.btoa(String.fromCharCode(...new Uint8Array(buffer)))
 }
 
 // Encrypt data with Hybrid Encryption (RSA + AES)
