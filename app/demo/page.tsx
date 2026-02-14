@@ -217,12 +217,12 @@ export default function DemoPage() {
       if (parts.length === 3) {
         // Hybrid Format: WrappedKey.IV.Data
         const [wrappedKeyB64, ivB64, dataB64] = parts
-        console.log("Hybrid parts found. Wrapping key length:", wrappedKeyB64.length)
+        console.log("Hybrid RSA+AES format detected. Wrapping key length:", wrappedKeyB64.length)
 
         // 1. Decrypt (unwrap) the AES key using RSA
         const aesKeyBuffer = await window.crypto.subtle.decrypt(
           {
-            name: "RSA-OAEP",
+            name: "RSA-OAEP"
           },
           key,
           base64ToBuffer(wrappedKeyB64)
@@ -250,12 +250,18 @@ export default function DemoPage() {
         const decodedString = decoder.decode(decryptedBuffer)
         return JSON.parse(decodedString)
       } else {
-        console.log("Legacy RSA-only format detected (parts !== 3)")
+        const isHex = /^[0-9a-fA-F]+$/.test(payload)
+        if (isHex) {
+          console.error("SYMMETRIC (siteKey) encryption detected! RSA Private Key cannot decrypt this.")
+          throw new Error("Symmetric encryption detected. This happens when the login system couldn't find your Public Key. Check the API key you used in Step 1.")
+        }
+
+        console.log("Legacy RSA-only format suspected (parts !== 3)")
         // Legacy RSA-only format
         const encryptedData = base64ToBuffer(payload)
         const decryptedBuffer = await window.crypto.subtle.decrypt(
           {
-            name: "RSA-OAEP",
+            name: "RSA-OAEP"
           },
           key,
           encryptedData

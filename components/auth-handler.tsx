@@ -208,26 +208,40 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
         })
       }
 
-      // Check if we have an API key to fetch the Public Key
+      console.log("APPROVE: apiKey prop value:", apiKey)
+
+      // Re-fetch Public Key just in case it wasn't loaded
       let publicKeyPem: string | null = null
       if (apiKey) {
         try {
+          console.log("Validating API key and fetching Public Key...")
           const validateResponse = await fetch("/api/api-keys", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action: "validate", apiKey }),
           })
           const validateData = await validateResponse.json()
-          if (validateData.valid && validateData.publicKey) {
-            publicKeyPem = validateData.publicKey
+          console.log("Validation response received:", validateData)
+
+          // Check root and keyData with both casings
+          publicKeyPem = validateData.publicKey ||
+            validateData.public_key ||
+            (validateData.keyData && (validateData.keyData.publicKey || validateData.keyData.public_key))
+
+          if (publicKeyPem) {
+            console.log("Public Key obtained successfully. Length:", publicKeyPem.length)
+          } else {
+            console.log("Public Key NOT found in validation response. Keys present:", Object.keys(validateData))
           }
         } catch (e) {
-          console.error("Failed to fetch public key:", e)
+          console.error("Failed to fetch public key during approval:", e)
         }
+      } else {
+        console.warn("No API key available for validation in handleApprove")
       }
 
-      console.log("Preparing to generate JWT. apiKey present:", !!apiKey)
-      console.log("Profile data to encrypt:", Object.keys(profileData))
+      console.log("Final decision - has publicKeyPem:", !!publicKeyPem)
+      console.log("Identified siteUrl:", siteUrl)
 
       let jwtPayload: any
 

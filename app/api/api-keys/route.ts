@@ -118,11 +118,14 @@ export async function POST(request: NextRequest) {
         const [used, total] = keyData.quota.split("/").map(Number)
         const canUse = used < total
 
+        console.log("Validation successful for key:", data.apiKey, "Has public_key:", !!keyData.public_key)
+
         return NextResponse.json({
           valid: true,
           canUse,
           quota: keyData.quota,
-          publicKey: keyData.public_key, // Return public key for encryption
+          publicKey: keyData.public_key, // Explicitly at root
+          public_key: keyData.public_key, // Snake case fallback
           keyData: {
             companyName: keyData.company_name,
             companyEmail: keyData.company_email,
