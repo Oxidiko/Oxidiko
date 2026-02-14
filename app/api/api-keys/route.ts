@@ -26,8 +26,9 @@ export async function POST(request: NextRequest) {
 
       const toPem = (buffer: ArrayBuffer, type: string) => {
         const b64 = Buffer.from(buffer).toString('base64')
-        const chunks = b64.match(/.{1,64}/g)!.join('\n')
-        return `-----BEGIN ${type} KEY-----\n${chunks}\n-----END ${type} KEY-----`
+        const chunks = b64.match(/.{1,64}/g)
+        const formattedChunks = chunks ? chunks.join('\n') : b64
+        return `-----BEGIN ${type} KEY-----\n${formattedChunks}\n-----END ${type} KEY-----`
       }
 
       return {
@@ -48,6 +49,15 @@ export async function POST(request: NextRequest) {
         }
 
       case "create":
+        // Ensure columns exist first
+        try {
+          await sql`ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS public_key TEXT`
+          await sql`ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS private_key TEXT`
+        } catch (e) {
+          console.error("Auto-migration during create failed:", e)
+          // Continue anyway, maybe they exist
+        }
+
         const { publicKey, privateKey } = await generateKeyPair()
 
         await sql`
