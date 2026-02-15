@@ -16,8 +16,6 @@ import {
   getStoredCredId,
   getCurrentOxidikoId,
   getStoredRecId,
-  encryptDataForSite,
-  recordSiteAccess,
 } from "@/lib/vault-storage"
 import { authenticatePasskey, isWebAuthnSupported } from "@/lib/webauthn-utils"
 import { incrementQuota } from "@/lib/api-validation"
@@ -252,39 +250,28 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
           const { importPublicKey, encryptDataWithPublicKey } = await import("@/lib/vault-storage")
           const socketKey = await importPublicKey(publicKeyPem)
 
-          // Encrypt ONLY the profile data to stay within RSA size limits (2048-bit RSA-OAEP limit is ~190 bytes)
+          // Encrypt ONLY the profile data to stay within RSA size limits
           const encryptedBlob = await encryptDataWithPublicKey(profileData, socketKey)
 
           jwtPayload = {
             ...identityClaims,
             encrypted: encryptedBlob,
-            // No IV for RSA-OAEP (Hybrid IV is inside the blob)
+            // Hybrid IV is inside the blob string as "WrappedKey.IV.Data"
           }
           console.log("Successfully generated hybrid-encrypted payload")
         } catch (err: any) {
           console.error("RSA Encryption failed:", err)
           throw new Error("Failed to encrypt data with Public Key. " + err.message)
         }
-      } else if (siteUrl && siteUrl !== window.location.origin) {
-        // Fallback to old symmetric siteKey logic
-        try {
-          console.log("Attempting legacy siteKey encryption for:", siteUrl)
-          const allData = { ...identityClaims, ...profileData }
-          const encryptedData = await encryptDataForSite(allData, siteUrl)
-          await recordSiteAccess(siteUrl, requestedFields, encryptedData, redirectUrl)
-
-          jwtPayload = {
-            encrypted: encryptedData.encrypted,
-            iv: encryptedData.iv,
-          }
-          console.log("Successfully generated legacy symmetric-encrypted payload")
-        } catch (encryptError) {
-          console.error("Legacy encryption failed:", encryptError)
-          jwtPayload = { ...identityClaims, ...profileData }
-        }
       } else {
-        console.log("Using plain data (no Public Key or siteUrl/same origin)")
+        // NO siteKey FALLBACK - strictly RSA or plain data
+        console.warn("Using plain data. Reason: publicKeyPem is", publicKeyPem ? "present" : "NULL")
+
         jwtPayload = { ...identityClaims, ...profileData }
+        if (jwtPayload.encrypted) {
+          console.warn("Removing 'encrypted' field from plain payload to avoid decryption collisions")
+          delete jwtPayload.encrypted
+        }
       }
 
       console.log("Final jwtPayload keys:", Object.keys(jwtPayload))

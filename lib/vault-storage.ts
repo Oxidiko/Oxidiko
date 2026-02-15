@@ -3,10 +3,9 @@
 const DB_NAME = "OxidikoVault"
 const DB_VERSION = 1
 const STORE_NAME = "vault"
-const PROFILE_KEY = "encrypted_profile"
-const SITE_KEYS_KEY = "site_keys"
+const PROFILE_KEY = "profile"
 const SITE_ACCESS_KEY = "site_access"
-const WRAP_CHALLENGE = "OxidikoWrapKey"
+const WRAP_CHALLENGE = "oxidiko-wrap-v1"
 
 let currentProfile: any = null
 let currentOxidikoId: string | null = null
@@ -63,39 +62,6 @@ const derivePasskeyKey = async (signature: ArrayBuffer): Promise<CryptoKey> => {
   return crypto.subtle.importKey("raw", hash, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"])
 }
 
-// Generate site-specific key using HKDF
-const generateSiteKey = async (siteOrigin: string): Promise<CryptoKey> => {
-  // Generate a random 128-bit key
-  const randomKey = crypto.getRandomValues(new Uint8Array(16))
-
-  // Use HKDF to derive site-specific key
-  const encoder = new TextEncoder()
-  const salt = encoder.encode(siteOrigin)
-
-  // Import the random key for HKDF
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    randomKey,
-    "HKDF",
-    false,
-    ["deriveKey"]
-  )
-
-  // Derive the site-specific key
-  return crypto.subtle.deriveKey(
-    {
-      name: "HKDF",
-      hash: "SHA-256",
-      salt: salt,
-      info: encoder.encode("oxidiko-site-key"),
-    },
-    keyMaterial,
-    { name: "AES-GCM", length: 256 },
-    true,
-    ["encrypt", "decrypt"]
-  )
-}
-
 // Wrap (encrypt) MVK with another key
 const wrapKey = async (mvk: CryptoKey, wrapKey: CryptoKey): Promise<{ wrapped: ArrayBuffer; iv: Uint8Array }> => {
   const iv = crypto.getRandomValues(new Uint8Array(12))
@@ -133,21 +99,9 @@ const decryptData = async (encrypted: ArrayBuffer, mvk: CryptoKey, iv: Uint8Arra
   return JSON.parse(decoder.decode(decrypted))
 }
 
-// Encrypt data with site-specific key
-const encryptDataWithSiteKey = async (data: any, siteKey: CryptoKey): Promise<{ encrypted: string; iv: string }> => {
-  const encoder = new TextEncoder()
-  const iv = crypto.getRandomValues(new Uint8Array(12))
-
-  const encrypted = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: iv },
-    siteKey,
-    encoder.encode(JSON.stringify(data))
-  )
-
-  return {
-    encrypted: Array.from(new Uint8Array(encrypted)).map(b => b.toString(16).padStart(2, '0')).join(''),
-    iv: Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join('')
-  }
+// Helper to generate new salt or IV
+export const generateSalt = (length = 16): Uint8Array => {
+  return crypto.getRandomValues(new Uint8Array(length))
 }
 
 // Store data in IndexedDB
@@ -247,8 +201,7 @@ export const createVault = async (
 
   await storeData(PROFILE_KEY, vaultData)
 
-  // Initialize empty site keys and access records
-  await storeData(SITE_KEYS_KEY, {})
+  // Initialize empty access records
   await storeData(SITE_ACCESS_KEY, {})
 
   currentProfile = profileData
@@ -432,115 +385,6 @@ export const validateSiteOrigin = (siteOrigin: string): string => {
   }
 };
 
-// Get or create site-specific key
-export const getSiteKey = async (siteOrigin: string): Promise<CryptoKey> => {
-  const validatedOrigin = validateSiteOrigin(siteOrigin);
-  if (!currentMVK) {
-    throw new Error("Vault is locked")
-  }
-
-  try {
-    // Try to retrieve existing site keys
-    const siteKeysData = await retrieveData(SITE_KEYS_KEY)
-    const siteKeys = siteKeysData || {}
-
-    if (siteKeys[validatedOrigin]) {
-      // Decrypt and import existing key
-      const encryptedKeyData = siteKeys[validatedOrigin]
-      const keyData = await decryptData(
-        new Uint8Array(encryptedKeyData.encrypted).buffer,
-        currentMVK,
-        new Uint8Array(encryptedKeyData.iv)
-      )
-
-      return crypto.subtle.importKey(
-        "raw",
-        new Uint8Array(keyData),
-        { name: "AES-GCM", length: 256 },
-        true,
-        ["encrypt", "decrypt"]
-      )
-    } else {
-      // Generate new site key
-      const siteKey = await generateSiteKey(validatedOrigin)
-
-      // Export and encrypt the key for storage
-      const keyData = await crypto.subtle.exportKey("raw", siteKey)
-      const { encrypted, iv } = await encryptData(Array.from(new Uint8Array(keyData)), currentMVK)
-
-      // Store the encrypted key
-      siteKeys[validatedOrigin] = {
-        encrypted: Array.from(new Uint8Array(encrypted)),
-        iv: Array.from(iv),
-        created_at: Date.now()
-      }
-
-      await storeData(SITE_KEYS_KEY, siteKeys)
-      return siteKey
-    }
-  } catch (err) {
-    console.error("Error getting site key:", err)
-    throw new Error("Failed to get site key")
-  }
-}
-
-// Encrypt data for site transmission
-export const encryptDataForSite = async (data: any, siteOrigin: string): Promise<{ encrypted: string; iv: string }> => {
-  const siteKey = await getSiteKey(siteOrigin)
-  return encryptDataWithSiteKey(data, siteKey)
-}
-
-// Record site access with encrypted data and site key
-export const recordSiteAccess = async (
-  siteOrigin: string,
-  fields: string[],
-  encryptedData: { encrypted: string; iv: string },
-  redirectUrl?: string
-): Promise<void> => {
-  if (!currentMVK) {
-    throw new Error("Vault is locked");
-  }
-
-  try {
-    const validatedOrigin = validateSiteOrigin(siteOrigin);
-    const siteAccessData = await retrieveData(SITE_ACCESS_KEY);
-    const siteAccess = siteAccessData || {};
-
-    if (!siteAccess[validatedOrigin]) {
-      siteAccess[validatedOrigin] = {
-        first_access: Date.now(),
-        access_count: 0,
-        accessed_fields: [],
-        recent_accesses: [],
-        site_url: validatedOrigin,
-      };
-    }
-
-    const siteRecord = siteAccess[validatedOrigin];
-    siteRecord.access_count += 1;
-    siteRecord.last_access = Date.now();
-
-    // Add new fields to accessed fields set
-    fields.forEach((field) => {
-      if (!siteRecord.accessed_fields.includes(field)) {
-        siteRecord.accessed_fields.push(field);
-      }
-    });
-
-    siteRecord.recent_accesses.push({
-      timestamp: Date.now(),
-      fields,
-      redirect_url: redirectUrl,
-      encrypted_data: encryptedData.encrypted,
-      encryption_iv: encryptedData.iv,
-    });
-
-    await storeData(SITE_ACCESS_KEY, siteAccess);
-  } catch (err) {
-    console.error("Failed to record site access:", err);
-    throw new Error("Failed to record site access");
-  }
-}
 
 // Get site access history
 export const getSiteAccessHistory = async (): Promise<any> => {
@@ -616,11 +460,6 @@ export const obliterateVault = async (): Promise<void> => {
     const deletePromises = [
       new Promise<void>((res, rej) => {
         const req = store.delete(PROFILE_KEY)
-        req.onerror = () => rej(req.error)
-        req.onsuccess = () => res()
-      }),
-      new Promise<void>((res, rej) => {
-        const req = store.delete(SITE_KEYS_KEY)
         req.onerror = () => rej(req.error)
         req.onsuccess = () => res()
       }),
