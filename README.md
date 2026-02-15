@@ -56,9 +56,12 @@ Powered by `app/login/page.tsx` + `components/auth-handler.tsx` + `/api/generate
 3. The popup validates your API key via `/api/api-keys` and **retrieves your site's Public Key**.
 4. User unlocks their vault (passkey or PIN).
 5. Data packaging:
-   - We encrypt the requested data using your **RSA Public Key** (RSA-OAEP) inside the browser.
-   - The Oxidiko server **cannot** read this data.
-6. The server signs a short‑lived JWT (RS256) at `/api/generate-jwt` containing the encrypted payload.
+   - We use **Hybrid Asymmetric Encryption** (RSA‑OAEP 2048 + AES‑GCM 256).
+   - In the browser, we generate a one‑time AES key to encrypt your profile data.
+   - We wrap (encrypt) that AES key with your site's **RSA Public Key**.
+   - The payload is formatted as: `base64(wrappedAESKey)` . `base64(IV)` . `base64(encryptedData)`.
+6. The server signs a short‑lived JWT (RS256) at `/api/generate-jwt` containing this hybrid string in the `encrypted` claim.
+   - The Oxidiko server **cannot** read your data because it lacks your Private Key.
 7. The popup posts back `{ type: 'OXID_AUTH_SUCCESS', token }` to `window.opener` and closes.
 
 There’s also `/api/verify-jwt` for signature verification on the server, and `lib/jwt-utils.ts` for client‑side claim checks. You use your **Private Key** on your backend to decrypt the user data.

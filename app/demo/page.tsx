@@ -426,7 +426,7 @@ export default function DemoPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="private-key" className="text-gray-300">
-                      Private Key (Optional - for Decryption)
+                      Private Key (for decryption)
                     </Label>
                     <Input
                       id="private-key"
