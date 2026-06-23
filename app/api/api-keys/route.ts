@@ -120,11 +120,12 @@ export async function POST(request: NextRequest) {
 
         console.log("Validation successful for key:", data.apiKey, "Has public_key:", !!keyData.public_key)
 
+        // SECURITY: Never return private_key to the browser.
         return NextResponse.json({
           valid: true,
           canUse,
           quota: keyData.quota,
-          publicKey: keyData.public_key, // Explicitly at root
+          publicKey: keyData.public_key, // Public key only — safe to share
           public_key: keyData.public_key, // Snake case fallback
           keyData: {
             companyName: keyData.company_name,
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
             createdAt: keyData.created_at,
             updatedAt: keyData.updated_at,
             publicKey: keyData.public_key,
-            privateKey: keyData.private_key,
+            // privateKey intentionally omitted — never sent to browser
           },
         })
 
@@ -206,6 +207,7 @@ export async function POST(request: NextRequest) {
         }
 
         const emailKeyData = await ensureKeys(emailResults[0])
+        // SECURITY: Never return private_key to the browser.
         return NextResponse.json({
           success: true,
           data: {
@@ -219,7 +221,7 @@ export async function POST(request: NextRequest) {
             createdAt: emailKeyData.created_at,
             updatedAt: emailKeyData.updated_at,
             publicKey: emailKeyData.public_key,
-            privateKey: emailKeyData.private_key,
+            // privateKey intentionally omitted — never sent to browser
           },
         })
 
@@ -232,42 +234,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  try {
-    const url = new URL(request.url)
-    const email = url.searchParams.get("email")
-
-    if (!email) {
-      return NextResponse.json({ error: "Email parameter required" }, { status: 400 })
-    }
-
-    const results = await sql`
-      SELECT * FROM api_keys WHERE company_email = ${email} LIMIT 1
-    `
-
-    if (results.length === 0) {
-      return NextResponse.json({ error: "API key not found" }, { status: 404 })
-    }
-
-    const keyData = await ensureKeys(results[0])
-    return NextResponse.json({
-      success: true,
-      data: {
-        companyName: keyData.company_name,
-        companyEmail: keyData.company_email,
-        apiKey: keyData.api_key,
-        quota: keyData.quota,
-        planId: keyData.plan_id,
-        isActive: keyData.is_active,
-        subscriptionId: keyData.subscription_id,
-        createdAt: keyData.created_at,
-        updatedAt: keyData.updated_at,
-        publicKey: keyData.public_key,
-        privateKey: keyData.private_key,
-      },
-    })
-  } catch (error) {
-    console.error("API Keys GET route error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
-}
+// SECURITY: The unauthenticated GET endpoint that previously exposed private keys
+// has been removed. Use the authenticated POST /api/admin/keys route to manage keys.

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
-import { verifyJWT } from "@/lib/jwt-utils"
+// SECURITY (CRIT-3): Use verifyAdminJWT which performs a real signature check
+import { verifyAdminJWT } from "@/lib/jwt-utils"
 
 
 const sql = neon(process.env.DATABASE_URL!)
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
     const token = authHeader.replace("Bearer ", "").trim()
     let payload
     try {
-      payload = await verifyJWT(token)
+      payload = await verifyAdminJWT(token)
     } catch (err: any) {
       return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 })
     }

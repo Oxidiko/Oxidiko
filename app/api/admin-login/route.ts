@@ -23,8 +23,14 @@ export async function POST(req: NextRequest) {
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 60 * 60 * 1 // 1 hour
     }
-    const secret = process.env.JWT_SECRET || "dev_secret"
-    const token = jwt.sign(payload, secret)
+    // SECURITY (CRIT-3): Never fall back to a default secret.
+    // If JWT_SECRET is not set, refuse to issue tokens rather than signing with a public constant.
+    const secret = process.env.JWT_SECRET
+    if (!secret || secret.length < 32) {
+      console.error("JWT_SECRET is not configured or too short")
+      return NextResponse.json({ success: false, error: "Server authentication not configured" }, { status: 500 })
+    }
+    const token = jwt.sign(payload, secret, { algorithm: "HS256" })
     return NextResponse.json({ success: true, token })
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message || "Authentication failed" }, { status: 500 })

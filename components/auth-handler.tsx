@@ -40,6 +40,7 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
   const [activeTab, setActiveTab] = useState("passkey")
   const [configReceived, setConfigReceived] = useState(false)
   const [isInitializing, setIsInitializing] = useState(true)
+  const [openerOrigin, setOpenerOrigin] = useState<string | null>(null)
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -85,8 +86,19 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
   useEffect(() => {
     // Listen for configuration from parent window
     const messageListener = (event: MessageEvent) => {
-      // Only accept messages from the window that opened this popup TODO
-      console.log("Auth handler received message:", event.data)
+      // SECURITY (CRIT-2): Capture the opener's origin on the very first message
+      // and reject any subsequent messages from a different origin.
+      if (!openerOrigin) {
+        // First message — record and trust this origin for the rest of the session.
+        // window.opener.location.origin would be same-origin only; using event.origin
+        // is the correct cross-origin way to identify the parent.
+        if (!event.origin || event.origin === "null") return // reject null-origin (e.g. sandboxed iframes)
+        setOpenerOrigin(event.origin)
+      } else if (event.origin !== openerOrigin) {
+        // Reject any message from a different origin than the one that opened us.
+        console.warn("[Oxidiko] Rejected postMessage from unexpected origin:", event.origin)
+        return
+      }
 
       // Handle configuration from parent
       if (event.data.api_key || event.data.fields || event.data.redirect || event.data.site_url) {
@@ -102,7 +114,6 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
         }
         if (event.data.site_url) {
           setSiteUrl(event.data.site_url)
-          console.log("Site URL set from parent:", event.data.site_url)
         }
         setConfigReceived(true)
       }
@@ -110,16 +121,19 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
 
     window.addEventListener("message", messageListener)
 
-    // Signal to parent that we're ready to receive configuration
+    // Signal to parent that we're ready to receive configuration.
+    // SECURITY (CRIT-2): We cannot know the opener origin until the first message
+    // arrives, so we intentionally send this one signal to "*". The opener
+    // must immediately reply with its config so we can lock the origin.
+    // All subsequent outgoing messages use the captured openerOrigin.
     if (window.opener) {
-      console.log("Signaling to parent that auth handler is ready")
       window.opener.postMessage({ oxidikoReady: true }, "*")
     }
 
     return () => {
       window.removeEventListener("message", messageListener)
     }
-  }, [])
+  }, [openerOrigin])
 
   const loadProfile = async () => {
     try {
@@ -309,13 +323,17 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
 
       // Send success message to parent
       if (window.opener) {
-        const parentOrigin = redirectUrl ? new URL(redirectUrl).origin : "*"
+        // SECURITY (CRIT-2): Use the captured opener origin, not "*".
+        const targetOrigin = openerOrigin || (redirectUrl ? new URL(redirectUrl).origin : undefined)
+        if (!targetOrigin) {
+          throw new Error("Cannot determine target origin for postMessage reply")
+        }
         window.opener.postMessage(
           {
             type: "OXID_AUTH_SUCCESS",
             token: token,
           },
-          parentOrigin,
+          targetOrigin,
         )
         window.close()
       } else {
@@ -327,14 +345,17 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
       const errorMessage = err.message || "Failed to generate authentication token"
 
       if (window.opener) {
-        const parentOrigin = redirectUrl ? new URL(redirectUrl).origin : "*"
-        window.opener.postMessage(
-          {
-            type: "OXID_AUTH_ERROR",
-            error: errorMessage,
-          },
-          parentOrigin,
-        )
+        // SECURITY (CRIT-2): Use the captured opener origin, not "*".
+        const targetOrigin = openerOrigin || (redirectUrl ? new URL(redirectUrl).origin : undefined)
+        if (targetOrigin) {
+          window.opener.postMessage(
+            {
+              type: "OXID_AUTH_ERROR",
+              error: errorMessage,
+            },
+            targetOrigin,
+          )
+        }
         window.close()
       } else {
         setError(errorMessage)
@@ -346,14 +367,17 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
 
   const handleDeny = () => {
     if (window.opener) {
-      const parentOrigin = redirectUrl ? new URL(redirectUrl).origin : "*"
-      window.opener.postMessage(
-        {
-          type: "OXID_AUTH_ERROR",
-          error: "access_denied",
-        },
-        parentOrigin,
-      )
+      // SECURITY (CRIT-2): Use the captured opener origin, not "*".
+      const targetOrigin = openerOrigin || (redirectUrl ? new URL(redirectUrl).origin : undefined)
+      if (targetOrigin) {
+        window.opener.postMessage(
+          {
+            type: "OXID_AUTH_ERROR",
+            error: "access_denied",
+          },
+          targetOrigin,
+        )
+      }
       window.close()
     } else {
       const callbackUrl = `${redirectUrl}?error=access_denied`
