@@ -5,7 +5,9 @@ const DB_VERSION = 1
 const STORE_NAME = "vault"
 const PROFILE_KEY = "profile"
 const SITE_ACCESS_KEY = "site_access"
-const WRAP_CHALLENGE = "oxidiko-wrap-v1"
+// LOW-2 FIX: Renamed from WRAP_CHALLENGE to make clear this is a vault format
+// version marker, NOT a cryptographic challenge. It was never used as one.
+const VAULT_FORMAT_VERSION = "oxidiko-wrap-v1"
 
 let currentProfile: any = null
 let currentOxidikoId: string | null = null
@@ -209,7 +211,7 @@ export const createVault = async (
     vault_ciphertext: Array.from(new Uint8Array(vaultCiphertext)),
     vault_iv: Array.from(vaultIv),
     salt: Array.from(salt),
-    wrapChallenge: WRAP_CHALLENGE,
+    wrapChallenge: VAULT_FORMAT_VERSION, // stored as version marker for backward compat
     created_at: Date.now(),
     rec_id: recId,
   }
@@ -274,9 +276,9 @@ export const getStoredPrfSupported = async (): Promise<boolean> => {
   }
 }
 
-// Get wrap challenge for passkey authentication
+// Get vault format version marker (not a crypto challenge — see LOW-2)
 export const getWrapChallenge = (): string => {
-  return WRAP_CHALLENGE
+  return VAULT_FORMAT_VERSION
 }
 
 // Unlock vault with passkey
@@ -462,20 +464,68 @@ export const exportVaultData = async (): Promise<string> => {
   return JSON.stringify(vaultData)
 }
 
-// Import vault data from backup
+// Import vault data from backup.
+// LOW-3 FIX: Strict schema allowlist — only known, expected fields are copied into
+// the stored vault record. Extra/injected keys (e.g. prototype pollution, a spoofed
+// rec_id, or an overridden wrapChallenge) are silently dropped.
 export const importVaultData = async (vaultJson: string): Promise<void> => {
+  let raw: any
   try {
-    const vaultData = JSON.parse(vaultJson)
-
-    // Validate required fields
-    if (!vaultData.oxidiko_id || !vaultData.wrappedKey_pin || !vaultData.vault_ciphertext) {
-      throw new Error("Invalid vault data format")
-    }
-
-    await storeData(PROFILE_KEY, vaultData)
-  } catch (err) {
-    throw new Error("Failed to import vault data")
+    raw = JSON.parse(vaultJson)
+  } catch {
+    throw new Error("Invalid vault data: not valid JSON")
   }
+
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error("Invalid vault data: expected a JSON object")
+  }
+
+  // Required fields — all must be present and non-empty arrays
+  const requiredArrays: (keyof typeof raw)[] = [
+    "wrappedKey_passkey",
+    "wrappedKey_pin",
+    "iv_passkey",
+    "iv_pin",
+    "vault_ciphertext",
+    "vault_iv",
+    "salt",
+  ]
+  for (const field of requiredArrays) {
+    if (!Array.isArray(raw[field]) || raw[field].length === 0) {
+      throw new Error(`Invalid vault data: missing or malformed field '${field}'`)
+    }
+  }
+
+  if (!raw.oxidiko_id || typeof raw.oxidiko_id !== "string") {
+    throw new Error("Invalid vault data: missing or invalid 'oxidiko_id'")
+  }
+  if (!raw.cred_id || typeof raw.cred_id !== "string") {
+    throw new Error("Invalid vault data: missing or invalid 'cred_id'")
+  }
+
+  // Build a clean vault object with only known, expected fields.
+  // Do NOT spread the raw object — that would admit arbitrary attacker-controlled keys.
+  const cleanVault: Record<string, unknown> = {
+    oxidiko_id:         raw.oxidiko_id,
+    cred_id:            raw.cred_id,
+    passkey_name:       typeof raw.passkey_name === "string" ? raw.passkey_name : "",
+    prf_supported:      raw.prf_supported === true,
+    wrappedKey_passkey: raw.wrappedKey_passkey,
+    wrappedKey_pin:     raw.wrappedKey_pin,
+    iv_passkey:         raw.iv_passkey,
+    iv_pin:             raw.iv_pin,
+    vault_ciphertext:   raw.vault_ciphertext,
+    vault_iv:           raw.vault_iv,
+    salt:               raw.salt,
+    // rec_id is re-derived at vault creation time; accept it read-only for display
+    rec_id:             typeof raw.rec_id === "string" ? raw.rec_id : "",
+    // Version marker — always force to the current format version on import
+    wrapChallenge:      VAULT_FORMAT_VERSION,
+    created_at:         typeof raw.created_at === "number" ? raw.created_at : Date.now(),
+    updated_at:         typeof raw.updated_at === "number" ? raw.updated_at : undefined,
+  }
+
+  await storeData(PROFILE_KEY, cleanVault)
 }
 
 // Obliterate vault - completely remove all vault data
