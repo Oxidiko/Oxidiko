@@ -140,11 +140,24 @@ export const getVault = async (vaultName: string): Promise<boolean> => {
   }
 }
 
-// Generate Recovery ID from Oxidiko ID and PIN
-const generateRecId = async (oxidikoId: string, pin: string): Promise<string> => {
+// Generate Recovery ID from Oxidiko ID and PIN.
+// HIGH-4 FIX: Uses PBKDF2 with the vault's stored salt so brute-forcing rec_id
+// costs the same 600k iterations as a PIN unlock attempt, not a cheap SHA-256.
+const generateRecId = async (oxidikoId: string, pin: string, salt: Uint8Array): Promise<string> => {
   const encoder = new TextEncoder()
-  const data = encoder.encode(oxidikoId + pin)
-  const hash = await crypto.subtle.digest("SHA-256", data)
+  const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(pin), "PBKDF2", false, ["deriveBits"])
+  const derivedBits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt, iterations: 600000, hash: "SHA-256" },
+    keyMaterial,
+    256,
+  )
+  // Mix in oxidikoId and a purpose label to domain-separate from the unlock key
+  const combined = new Uint8Array([
+    ...new Uint8Array(derivedBits),
+    ...encoder.encode(oxidikoId),
+    ...encoder.encode("rec_id"),
+  ])
+  const hash = await crypto.subtle.digest("SHA-256", combined)
   return Array.from(new Uint8Array(hash))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("")
@@ -170,8 +183,8 @@ export const createVault = async (
   // Generate salt for PIN derivation
   const salt = crypto.getRandomValues(new Uint8Array(32))
 
-  // Generate Recovery ID
-  const recId = await generateRecId(oxidikoId, pin)
+  // Generate Recovery ID — must be derived AFTER salt is generated (HIGH-4)
+  const recId = await generateRecId(oxidikoId, pin, salt)
 
   // Derive keys for wrapping
   const pinKey = await derivePINKey(pin, salt)
@@ -435,13 +448,17 @@ export const getRecentSiteAccesses = async (): Promise<any[]> => {
     .slice(0, 3)
 }
 
-// Export vault data for backup/transfer
+// Export vault data for backup/transfer.
+// MED-4 FIX: Requires the vault to be unlocked — caller must have already authenticated.
+// The exported blob is encrypted (useless without keys) but we guard even metadata access.
 export const exportVaultData = async (): Promise<string> => {
+  if (!isVaultUnlocked()) {
+    throw new Error("Vault must be unlocked before exporting")
+  }
   const vaultData = await retrieveData(PROFILE_KEY)
   if (!vaultData) {
     throw new Error("Vault not found")
   }
-
   return JSON.stringify(vaultData)
 }
 
@@ -561,8 +578,9 @@ export const encryptDataWithPublicKey = async (data: any, rssPublicKey: CryptoKe
     exportedAesKey
   )
 
-  // 5. Package as base64 strings: WrappedKey.IV.EncryptedData
-  const result = `${bufferToBase64(wrappedKey)}.${bufferToBase64(iv)}.${bufferToBase64(encryptedData)}`
-  console.log("Generated hybrid payload. Parts:", result.split('.').length, "Total length:", result.length)
+  // 5. MED-5 FIX: Package as base64 strings separated by `|`.
+  // Base64 characters never include `|`, so splitting on `|` is unambiguous.
+  // The old `.` separator could collide with base64 padding characters.
+  const result = `${bufferToBase64(wrappedKey)}|${bufferToBase64(iv)}|${bufferToBase64(encryptedData)}`
   return result
 }

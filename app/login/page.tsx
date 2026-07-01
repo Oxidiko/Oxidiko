@@ -49,7 +49,6 @@ export default function LoginPage() {
 
     // Listen for configuration from parent window
     const messageListener = async (event: MessageEvent) => {
-      console.log("Login page received message:", event.data)
       if (event.data.api_key || event.data.fields) {
         if (event.data.api_key) {
           await handleApiKey(event.data.api_key)
@@ -64,7 +63,6 @@ export default function LoginPage() {
 
     // Signal to parent that we're ready to receive configuration
     if (window.opener) {
-      console.log("Login page signaling ready to parent")
       window.opener.postMessage({ oxidikoReady: true }, "*")
     }
 

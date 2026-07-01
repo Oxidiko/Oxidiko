@@ -49,7 +49,7 @@ export const incrementQuota = async (apiKey: string): Promise<void> => {
     }
 
     const result = await response.json()
-    console.log("Quota updated:", result.quota)
+    // quota updated silently
   } catch (error) {
     console.error("Failed to increment quota:", error)
     throw error
@@ -68,18 +68,20 @@ export const addAPIKeyToDatabase = async (data: APIKeyData): Promise<void> => {
     if (!response.ok) {
       throw new Error("Failed to add API key to database")
     }
-
-    console.log("API key added to database successfully")
   } catch (error) {
     console.error("Failed to add API key to database:", error)
     throw error
   }
 }
 
-// Get API key data by email
+// Get API key data by email (uses authenticated POST action)
 export const getAPIKeyDataByEmail = async (email: string): Promise<APIKeyData | null> => {
   try {
-    const response = await fetch(`/api/api-keys?email=${encodeURIComponent(email)}`)
+    const response = await fetch("/api/api-keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "getByEmail", email }),
+    })
 
     if (!response.ok) {
       return null
@@ -105,8 +107,6 @@ export const updateAPIKeyStatus = async (apiKey: string, subscriptionId?: string
     if (!response.ok) {
       throw new Error("Failed to activate API key")
     }
-
-    console.log("API key activated successfully")
   } catch (error) {
     console.error("Failed to activate API key:", error)
     throw error
@@ -170,8 +170,6 @@ export const revokeAPIKey = async (apiKey: string): Promise<void> => {
     if (!response.ok) {
       throw new Error("Failed to revoke API key")
     }
-
-    console.log("API key revoked successfully")
   } catch (error) {
     console.error("Failed to revoke API key:", error)
     throw error
@@ -194,8 +192,6 @@ export const activateAPIKey = async (apiKey: string): Promise<void> => {
     if (!response.ok) {
       throw new Error("Failed to activate API key")
     }
-
-    console.log("API key activated successfully")
   } catch (error) {
     console.error("Failed to activate API key:", error)
     throw error

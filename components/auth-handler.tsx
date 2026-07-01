@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -43,6 +43,10 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
   const [isInitializing, setIsInitializing] = useState(true)
   const [openerOrigin, setOpenerOrigin] = useState<string | null>(null)
   const [prfSupported, setPrfSupported] = useState(false)
+  // MED-2: PIN brute-force protection — 5 failures triggers exponential lockout
+  const pinAttempts = useRef(0)
+  const [pinLocked, setPinLocked] = useState(false)
+  const [pinLockSeconds, setPinLockSeconds] = useState(0)
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -178,19 +182,38 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
   }
 
   const handlePinUnlock = async () => {
+    if (pinLocked) {
+      setError(`Too many failed attempts. Please wait ${pinLockSeconds}s before trying again.`)
+      return
+    }
     if (pin.length < 8) {
       setError("PIN must be at least 8 characters long")
       return
     }
-
     setError("")
     setIsLoading(true)
-
     try {
       await unlockVaultWithPIN(pin)
+      pinAttempts.current = 0
       setIsUnlocked(true)
       await loadProfile()
     } catch (err: any) {
+      pinAttempts.current += 1
+      if (pinAttempts.current >= 5) {
+        // Exponential backoff: 30s, 60s, 120s, ...
+        const lockSeconds = 30 * Math.pow(2, pinAttempts.current - 5)
+        setPinLocked(true)
+        setPinLockSeconds(lockSeconds)
+        let remaining = lockSeconds
+        const timer = setInterval(() => {
+          remaining -= 1
+          setPinLockSeconds(remaining)
+          if (remaining <= 0) {
+            clearInterval(timer)
+            setPinLocked(false)
+          }
+        }, 1000)
+      }
       setError(err.message || "Invalid PIN")
     } finally {
       setIsLoading(false)
@@ -226,40 +249,23 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
         })
       }
 
-      console.log("APPROVE: apiKey prop value:", apiKey)
-
-      // Re-fetch Public Key just in case it wasn't loaded
+      // Fetch the site's Public Key via API key validation
       let publicKeyPem: string | null = null
       if (apiKey) {
         try {
-          console.log("Validating API key and fetching Public Key...")
           const validateResponse = await fetch("/api/api-keys", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action: "validate", apiKey }),
           })
           const validateData = await validateResponse.json()
-          console.log("Validation response received:", validateData)
-
-          // Check root and keyData with both casings
           publicKeyPem = validateData.publicKey ||
             validateData.public_key ||
             (validateData.keyData && (validateData.keyData.publicKey || validateData.keyData.public_key))
-
-          if (publicKeyPem) {
-            console.log("Public Key obtained successfully. Length:", publicKeyPem.length)
-          } else {
-            console.log("Public Key NOT found in validation response. Keys present:", Object.keys(validateData))
-          }
         } catch (e) {
           console.error("Failed to fetch public key during approval:", e)
         }
-      } else {
-        console.warn("No API key available for validation in handleApprove")
       }
-
-      console.log("Final decision - has publicKeyPem:", !!publicKeyPem)
-      console.log("Identified siteUrl:", siteUrl)
 
       // HIGH-2 FIX: Fail closed — never send plaintext profile data.
       // If no public key is available (validation failed, inactive key, etc.),
@@ -286,14 +292,6 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
         throw new Error("Failed to encrypt data with Public Key: " + err.message)
       }
 
-      console.log("Final jwtPayload keys:", Object.keys(jwtPayload))
-      if (jwtPayload.encrypted && typeof jwtPayload.encrypted === 'string') {
-        console.log("Encrypted payload sample:", jwtPayload.encrypted.substring(0, 20) + "...")
-        console.log("Encrypted payload dots:", jwtPayload.encrypted.split('.').length - 1)
-      }
-
-      console.log("Calling JWT generation API with payload type:", jwtPayload.encrypted ? "encrypted" : "plain")
-
       const response = await fetch("/api/generate-jwt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -310,7 +308,6 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
       }
 
       const token = result.token
-      console.log("JWT generated successfully")
 
       // Increment API quota
       if (apiKey) {

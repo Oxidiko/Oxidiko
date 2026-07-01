@@ -9,7 +9,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Username and password are required" }, { status: 400 })
     }
     const combinedString = username + password
-    const adminHash = process.env.NEXT_PUBLIC_ADMIN_HASH
+    // MED-1 FIX: Use ADMIN_HASH (no NEXT_PUBLIC_ prefix) so Next.js does NOT
+    // bundle this value into client-side JavaScript. API routes can read
+    // private env vars directly; never use NEXT_PUBLIC_ for secrets.
+    const adminHash = process.env.ADMIN_HASH
     if (!adminHash) {
       return NextResponse.json({ success: false, error: "Admin authentication not configured" }, { status: 500 })
     }

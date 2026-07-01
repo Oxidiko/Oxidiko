@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
         const [used, total] = keyData.quota.split("/").map(Number)
         const canUse = used < total
 
-        console.log("Validation successful for key:", data.apiKey, "Has public_key:", !!keyData.public_key)
+        // validation successful
 
         // SECURITY: Never return private_key to the browser.
         return NextResponse.json({
@@ -163,17 +163,8 @@ export async function POST(request: NextRequest) {
         const newUsed = currentUsed + 1
         const newQuota = `${newUsed}/${currentTotal}`
 
-        console.log(
-          "Incrementing quota for API key:",
-          data.apiKey,
-          "From:",
-          `${currentUsed}/${currentTotal}`,
-          "To:",
-          newQuota,
-        )
-
         await sql`
-          UPDATE api_keys 
+          UPDATE api_keys
           SET quota = ${newQuota}, updated_at = CURRENT_TIMESTAMP
           WHERE api_key = ${data.apiKey}
         `

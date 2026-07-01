@@ -48,15 +48,8 @@ export default function DemoPage() {
     const fieldsToRequest = selectedFields.includes("none") ? ["none"] : selectedFields
     const fields = fieldsToRequest.join(",")
     const redirectUrl = `${window.location.origin}/demo`
-    const siteUrl = window.location.href // Send the full current URL
+    const siteUrl = window.location.href
     const authUrl = `${window.location.origin}/login`
-
-    console.log("Opening login popup with config:", {
-      apiKey: "***",
-      fields,
-      redirectUrl,
-      siteUrl,
-    })
 
     const left = (screen.width - 500) / 2
     const top = (screen.height - 700) / 2
@@ -73,14 +66,10 @@ export default function DemoPage() {
     // Listen for messages from popup
     const messageListener = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) {
-        console.warn("Ignoring message from untrusted origin:", event.origin)
         return
       }
 
-      console.log("Received message from popup:", event.data)
-
       if (event.data.type === "OXID_AUTH_SUCCESS") {
-        console.log("Authentication successful, received token")
         setToken(event.data.token)
         verifyToken(event.data.token)
         popup?.close()
@@ -92,14 +81,13 @@ export default function DemoPage() {
         popup?.close()
         window.removeEventListener("message", messageListener)
       } else if (event.data.oxidikoReady && !configSent) {
-        console.log("Popup ready, sending configuration")
         // Send the required params to the popup via postMessage
         popup.postMessage(
           {
             api_key: apiKey.trim(),
             fields,
             redirect: redirectUrl,
-            site_url: siteUrl, // Include the full site URL
+            site_url: siteUrl,
           },
           window.location.origin,
         )
@@ -107,20 +95,18 @@ export default function DemoPage() {
       }
     }
 
-    // Add message listener immediately
     window.addEventListener("message", messageListener)
     messageListenerAdded = true
 
-    // Mobile-specific: Try sending config after a short delay
+    // Mobile-specific: Try sending config after a short delay if oxidikoReady was missed
     const mobileConfigTimeout = setTimeout(() => {
       if (popup && !popup.closed && !configSent) {
-        console.log("Sending delayed configuration for mobile")
         popup.postMessage(
           {
             api_key: apiKey.trim(),
             fields,
             redirect: redirectUrl,
-            site_url: siteUrl, // Include the full site URL
+            site_url: siteUrl,
           },
           window.location.origin,
         )
@@ -128,10 +114,8 @@ export default function DemoPage() {
       }
     }, 1000)
 
-    // Additional fallback for mobile devices
     const mobileConfigTimeout2 = setTimeout(() => {
       if (popup && !popup.closed && !configSent) {
-        console.log("Sending second delayed configuration for mobile")
         popup.postMessage(
           {
             api_key: apiKey.trim(),
@@ -148,7 +132,6 @@ export default function DemoPage() {
     // Fallback: check if popup was closed manually
     const checkClosed = setInterval(() => {
       if (popup?.closed) {
-        console.log("Popup was closed")
         clearInterval(checkClosed)
         clearTimeout(mobileConfigTimeout)
         clearTimeout(mobileConfigTimeout2)
@@ -207,27 +190,20 @@ export default function DemoPage() {
 
   const decryptData = async (payload: string, key: CryptoKey) => {
     try {
-      console.log("Starting hybrid decryption for payload length:", payload.length)
-      const parts = payload.split('.')
-      console.log("Parts found:", parts.length)
-      if (payload.length > 20) {
-        console.log("Payload snippet:", payload.substring(0, 10) + "..." + payload.substring(payload.length - 10))
-      }
+      // MED-5: Split on `|` (the new unambiguous separator in vault-storage.ts).
+      // Fall back to `.` for tokens issued before the separator was changed.
+      const parts = payload.includes("|") ? payload.split("|") : payload.split(".")
 
       if (parts.length === 3) {
-        // Hybrid Format: WrappedKey.IV.Data
+        // Hybrid Format: WrappedKey|IV|Data
         const [wrappedKeyB64, ivB64, dataB64] = parts
-        console.log("Hybrid RSA+AES format detected. Wrapping key length:", wrappedKeyB64.length)
 
         // 1. Decrypt (unwrap) the AES key using RSA
         const aesKeyBuffer = await window.crypto.subtle.decrypt(
-          {
-            name: "RSA-OAEP"
-          },
+          { name: "RSA-OAEP" },
           key,
           base64ToBuffer(wrappedKeyB64)
         )
-        console.log("AES key unwrapped successfully")
 
         // 2. Import the decrypted AES key
         const aesKey = await window.crypto.subtle.importKey(
@@ -244,7 +220,6 @@ export default function DemoPage() {
           aesKey,
           base64ToBuffer(dataB64)
         )
-        console.log("Profile data decrypted successfully")
 
         const decoder = new TextDecoder()
         const decodedString = decoder.decode(decryptedBuffer)
@@ -252,17 +227,14 @@ export default function DemoPage() {
       } else {
         const isHex = /^[0-9a-fA-F]+$/.test(payload)
         if (isHex) {
-          console.error("SYMMETRIC (siteKey) encryption detected! RSA Private Key cannot decrypt this.")
+          console.error("SYMMETRIC encryption detected — RSA Private Key cannot decrypt this.")
           throw new Error("Symmetric encryption detected. This happens when the login system couldn't find your Public Key. Check the API key you used in Step 1.")
         }
 
-        console.log("Legacy RSA-only format suspected (parts !== 3)")
         // Legacy RSA-only format
         const encryptedData = base64ToBuffer(payload)
         const decryptedBuffer = await window.crypto.subtle.decrypt(
-          {
-            name: "RSA-OAEP"
-          },
+          { name: "RSA-OAEP" },
           key,
           encryptedData
         )
@@ -284,27 +256,19 @@ export default function DemoPage() {
 
       // Check if the data is encrypted
       if (payload.encrypted) {
-        console.log("Token contains encrypted data.")
-
         if (privateKey) {
           try {
-            console.log("Attempting to decrypt with provided Private Key...")
             const key = await importPrivateKey(privateKey)
             const decrypted = await decryptData(payload.encrypted, key)
-            console.log("Decryption successful:", decrypted)
-            setUserData({ ...decrypted, ...payload }) // Merge decrypted data with public claims like exp/iat
+            setUserData({ ...decrypted, ...payload })
           } catch (err: any) {
-            console.warn("Decryption failed:", err.message)
             setError("Token valid, but decryption failed: " + err.message)
-            setUserData(payload) // Show encrypted payload
+            setUserData(payload)
           }
         } else {
-          console.log("No private key provided, showing encrypted payload")
           setUserData(payload)
         }
       } else {
-        // Old format or unencrypted data
-        console.log("Token contains plain data")
         setUserData(payload)
       }
       // setError("") // Don't clear error here if decryption failed
