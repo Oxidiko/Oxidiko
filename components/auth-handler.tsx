@@ -16,6 +16,7 @@ import {
   getStoredCredId,
   getCurrentOxidikoId,
   getStoredRecId,
+  getStoredPrfSupported,
 } from "@/lib/vault-storage"
 import { authenticatePasskey, isWebAuthnSupported } from "@/lib/webauthn-utils"
 import { incrementQuota } from "@/lib/api-validation"
@@ -41,6 +42,7 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
   const [configReceived, setConfigReceived] = useState(false)
   const [isInitializing, setIsInitializing] = useState(true)
   const [openerOrigin, setOpenerOrigin] = useState<string | null>(null)
+  const [prfSupported, setPrfSupported] = useState(false)
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -72,6 +74,9 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
       } else {
         const storedCredId = await getStoredCredId()
         setCredId(storedCredId)
+        // HIGH-1: Read the prf_supported flag so unlock uses the correct key derivation path
+        const prf = await getStoredPrfSupported()
+        setPrfSupported(prf)
         if (!storedCredId || !isWebAuthnSupported()) {
           setActiveTab("pin")
         }
@@ -154,7 +159,8 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
     setIsLoading(true)
 
     try {
-      const { oxidikoId, signature } = await authenticatePasskey(credId)
+      // HIGH-1: Pass prfSupported so the correct key derivation path is used
+      const { oxidikoId, signature } = await authenticatePasskey(credId, prfSupported)
       await unlockVaultWithPasskey(oxidikoId, signature)
       setIsUnlocked(true)
       await loadProfile()
@@ -255,37 +261,29 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
       console.log("Final decision - has publicKeyPem:", !!publicKeyPem)
       console.log("Identified siteUrl:", siteUrl)
 
+      // HIGH-2 FIX: Fail closed — never send plaintext profile data.
+      // If no public key is available (validation failed, inactive key, etc.),
+      // abort the auth flow with a clear error instead of silently downgrading.
+      if (!publicKeyPem) {
+        throw new Error(
+          "Authentication aborted: could not obtain the site's Public Key. " +
+          "Sending profile data in plaintext is not permitted."
+        )
+      }
+
       let jwtPayload: any
 
-      // Use Asymmetric Encryption if Public Key is available
-      if (publicKeyPem) {
-        try {
-          console.log("Using Asymmetric (RSA) encryption with public key...")
-          const { importPublicKey, encryptDataWithPublicKey } = await import("@/lib/vault-storage")
-          const socketKey = await importPublicKey(publicKeyPem)
-
-          // Encrypt ONLY the profile data to stay within RSA size limits
-          const encryptedBlob = await encryptDataWithPublicKey(profileData, socketKey)
-
-          jwtPayload = {
-            ...identityClaims,
-            encrypted: encryptedBlob,
-            // Hybrid IV is inside the blob string as "WrappedKey.IV.Data"
-          }
-          console.log("Successfully generated hybrid-encrypted payload")
-        } catch (err: any) {
-          console.error("RSA Encryption failed:", err)
-          throw new Error("Failed to encrypt data with Public Key. " + err.message)
+      // Asymmetric encryption path — always required
+      try {
+        const { importPublicKey, encryptDataWithPublicKey } = await import("@/lib/vault-storage")
+        const socketKey = await importPublicKey(publicKeyPem)
+        const encryptedBlob = await encryptDataWithPublicKey(profileData, socketKey)
+        jwtPayload = {
+          ...identityClaims,
+          encrypted: encryptedBlob,
         }
-      } else {
-        // NO siteKey FALLBACK - strictly RSA or plain data
-        console.warn("Using plain data. Reason: publicKeyPem is", publicKeyPem ? "present" : "NULL")
-
-        jwtPayload = { ...identityClaims, ...profileData }
-        if (jwtPayload.encrypted) {
-          console.warn("Removing 'encrypted' field from plain payload to avoid decryption collisions")
-          delete jwtPayload.encrypted
-        }
+      } catch (err: any) {
+        throw new Error("Failed to encrypt data with Public Key: " + err.message)
       }
 
       console.log("Final jwtPayload keys:", Object.keys(jwtPayload))
@@ -299,7 +297,9 @@ export function AuthHandler({ apiKey, fields }: AuthHandlerProps) {
       const response = await fetch("/api/generate-jwt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(jwtPayload),
+        // HIGH-3: Include api_key so the server can validate the caller before signing.
+        // The server strips api_key from the payload before it's put into the JWT.
+        body: JSON.stringify({ ...jwtPayload, api_key: apiKey }),
       })
 
       const result = await response.json()

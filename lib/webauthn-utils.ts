@@ -1,5 +1,9 @@
 // WebAuthn utilities for Oxidiko identity management
 
+// PRF extension input salt — static per application, identifies the purpose of the key.
+// This is NOT secret; it just namespaces the PRF output for Oxidiko key-wrapping.
+const PRF_EVAL_INPUT = new TextEncoder().encode("oxidiko-vault-wrap-v2")
+
 // Generate random bytes for challenges
 export const generateRandomBytes = (length = 32): Uint8Array => {
   return crypto.getRandomValues(new Uint8Array(length))
@@ -26,19 +30,26 @@ export const extractPublicKey = (credential: PublicKeyCredential): Uint8Array =>
   return new Uint8Array(credential.rawId)
 }
 
-// Create a deterministic signature for key wrapping
-const createWrapSignature = async (credentialId: ArrayBuffer): Promise<ArrayBuffer> => {
+// LEGACY ONLY: static deterministic wrap signature derived from credential ID.
+// Used only for vaults created before PRF support was added (prf_supported: false).
+// SECURITY NOTE: This derives from public data and does NOT provide hardware binding.
+// New vaults always use PRF when the authenticator supports it.
+const createLegacyWrapSignature = async (credentialId: ArrayBuffer): Promise<ArrayBuffer> => {
   const wrapData = new Uint8Array([...new Uint8Array(credentialId), ...new TextEncoder().encode("OxidikoWrapKey")])
   return await crypto.subtle.digest("SHA-256", wrapData)
 }
 
-// Create WebAuthn credential (passkey) and get signature for key wrapping
+// Create WebAuthn credential (passkey) and get signature for key wrapping.
+// Returns prf_supported: true and a PRF-derived signature when the authenticator
+// supports the PRF extension, giving hardware-bound key material.
+// Falls back to the legacy scheme when PRF is not available.
 export const createPasskey = async (): Promise<{
   credential: PublicKeyCredential
   oxidikoId: string
   credId: string
   signature: ArrayBuffer
   passkeyName: string
+  prfSupported: boolean
 }> => {
   const challenge = generateRandomBytes(32)
   const oxidikoSuffix = generateOxidikoSuffix()
@@ -67,21 +78,19 @@ export const createPasskey = async (): Promise<{
       ],
       authenticatorSelection: {
         userVerification: "required",
-        // Remove authenticatorAttachment to allow both platform and cross-platform
-        // This lets Chrome show options: "This device", "Phone or tablet", "Security key"
-        residentKey: "required", // This makes the passkey discoverable and saveable across devices
-        requireResidentKey: true, // Ensure the key is stored on the authenticator
+        residentKey: "required",
+        requireResidentKey: true,
       },
-      timeout: 120000, // Increased timeout to give user time to choose
+      timeout: 120000,
       attestation: "none",
       extensions: {
-        // Request credential properties to understand what was created
         credProps: true,
-        // Enable large blob extension for additional data storage if supported
-        largeBlob: {
-          support: "preferred",
-        },
-      },
+        largeBlob: { support: "preferred" },
+        // HIGH-1 FIX: Request PRF extension for hardware-bound key derivation.
+        // If the authenticator supports it, we get a deterministic secret that
+        // is bound to the device and cannot be computed from public data alone.
+        prf: { eval: { first: PRF_EVAL_INPUT } },
+      } as any,
     },
   })) as PublicKeyCredential
 
@@ -89,33 +98,32 @@ export const createPasskey = async (): Promise<{
     throw new Error("Failed to create passkey")
   }
 
-  // Check if the credential was stored as a resident key
-  const response = credential.response as AuthenticatorAttestationResponse
-  const extensions = credential.getClientExtensionResults()
-
-  console.log("Passkey created with extensions:", extensions)
-  console.log("Credential response:", response)
-
-  // Log authenticator info for debugging
-  if (response.getAuthenticatorData) {
-    const authData = response.getAuthenticatorData()
-    console.log("Authenticator data length:", authData.byteLength)
-  }
+  const extensions = credential.getClientExtensionResults() as any
 
   // Extract public key (using credential ID)
   const pubKey = extractPublicKey(credential)
-
-  // Generate Oxidiko ID from public key hash
   const oxidikoId = await sha256(pubKey)
 
-  // Store credential ID for future authentication
   const credId = Array.from(new Uint8Array(credential.rawId))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("")
 
-  // Create deterministic signature for key wrapping
-  // This ensures the same signature is always generated for the same credential
-  const signature = await createWrapSignature(credential.rawId)
+  // HIGH-1 FIX: Use PRF output as the wrap signature if the authenticator supports it.
+  // The PRF output is hardware-bound: it cannot be derived without the physical authenticator,
+  // even by someone who has read the credential ID from IndexedDB.
+  let signature: ArrayBuffer
+  let prfSupported = false
+
+  if (extensions?.prf?.results?.first) {
+    // PRF is supported — use the hardware-bound PRF output.
+    signature = extensions.prf.results.first
+    prfSupported = true
+  } else {
+    // PRF not supported by this authenticator — fall back to legacy scheme.
+    // This is weaker (no hardware binding) but keeps the app functional.
+    signature = await createLegacyWrapSignature(credential.rawId)
+    prfSupported = false
+  }
 
   return {
     credential,
@@ -123,6 +131,7 @@ export const createPasskey = async (): Promise<{
     credId,
     signature,
     passkeyName,
+    prfSupported,
   }
 }
 
@@ -135,16 +144,15 @@ export const createPasskeyWithPreference = async (
   credId: string
   signature: ArrayBuffer
   passkeyName: string
+  prfSupported: boolean
 }> => {
   const challenge = generateRandomBytes(32)
   const oxidikoSuffix = generateOxidikoSuffix()
   const passkeyName = `oxidiko-${oxidikoSuffix}`
 
-  // Create a meaningful user ID that can be used across devices
   const userIdString = `oxidiko-user-${oxidikoSuffix}`
   const userId = new TextEncoder().encode(userIdString)
 
-  // Configure authenticator selection based on preference
   const authenticatorSelection: AuthenticatorSelectionCriteria = {
     userVerification: "required",
     residentKey: "required",
@@ -156,7 +164,6 @@ export const createPasskeyWithPreference = async (
   } else if (authenticatorType === "cross-platform") {
     authenticatorSelection.authenticatorAttachment = "cross-platform"
   }
-  // If "any", don't set authenticatorAttachment to let user choose
 
   const credential = (await navigator.credentials.create({
     publicKey: {
@@ -171,19 +178,18 @@ export const createPasskeyWithPreference = async (
         displayName: `Oxidiko Identity ${oxidikoSuffix}`,
       },
       pubKeyCredParams: [
-        { type: "public-key", alg: -7 }, // ES256
-        { type: "public-key", alg: -257 }, // RS256 fallback
-        { type: "public-key", alg: -8 }, // EdDSA
+        { type: "public-key", alg: -7 },
+        { type: "public-key", alg: -257 },
+        { type: "public-key", alg: -8 },
       ],
       authenticatorSelection,
-      timeout: 120000, // Increased timeout to give user time to choose
+      timeout: 120000,
       attestation: "none",
       extensions: {
         credProps: true,
-        largeBlob: {
-          support: "preferred",
-        },
-      },
+        largeBlob: { support: "preferred" },
+        prf: { eval: { first: PRF_EVAL_INPUT } },
+      } as any,
     },
   })) as PublicKeyCredential
 
@@ -191,53 +197,44 @@ export const createPasskeyWithPreference = async (
     throw new Error("Failed to create passkey")
   }
 
-  // Extract public key (using credential ID)
+  const extensions = credential.getClientExtensionResults() as any
   const pubKey = extractPublicKey(credential)
-
-  // Generate Oxidiko ID from public key hash
   const oxidikoId = await sha256(pubKey)
 
-  // Store credential ID for future authentication
   const credId = Array.from(new Uint8Array(credential.rawId))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("")
 
-  // Create deterministic signature for key wrapping
-  const signature = await createWrapSignature(credential.rawId)
+  let signature: ArrayBuffer
+  let prfSupported = false
 
-  return {
-    credential,
-    oxidikoId,
-    credId,
-    signature,
-    passkeyName,
+  if (extensions?.prf?.results?.first) {
+    signature = extensions.prf.results.first
+    prfSupported = true
+  } else {
+    signature = await createLegacyWrapSignature(credential.rawId)
+    prfSupported = false
   }
+
+  return { credential, oxidikoId, credId, signature, passkeyName, prfSupported }
 }
 
-// Authenticate with existing passkey using wrap challenge
+// Authenticate with existing passkey.
+// HIGH-1 FIX: Uses a random challenge each time (no more static "OxidikoAuthChallenge").
+// Supports both PRF-enabled vaults (hardware-bound key) and legacy vaults (static hash).
 export const authenticatePasskey = async (
   credId: string,
+  prfSupported?: boolean, // pass true if the vault was created with PRF support
 ): Promise<{
   assertion: PublicKeyCredential
   oxidikoId: string
   signature: ArrayBuffer
 }> => {
-  // Convert hex string back to Uint8Array
   const credIdBytes = new Uint8Array(credId.match(/.{1,2}/g)?.map((byte) => Number.parseInt(byte, 16)) || [])
 
-  // Create deterministic signature for key wrapping (same as creation)
-  const signature = await createWrapSignature(credIdBytes.buffer)
-
-  // Extract public key from credential ID (using credential ID as proxy)
-  const pubKey = credIdBytes
-
-  // Recompute Oxidiko ID
-  const oxidikoId = await sha256(pubKey)
-
-  // We still need to verify the user can authenticate, but we don't use the signature from WebAuthn
-  // Instead we use our deterministic signature for consistency
-  const encoder = new TextEncoder()
-  const challenge = encoder.encode("OxidikoAuthChallenge")
+  // HIGH-1 FIX: Use a random challenge instead of a static string.
+  // This is what WebAuthn requires — a static challenge provides no replay protection.
+  const challenge = generateRandomBytes(32)
 
   const assertion = (await navigator.credentials.get({
     publicKey: {
@@ -250,6 +247,10 @@ export const authenticatePasskey = async (
       ],
       userVerification: "required",
       timeout: 60000,
+      // Request PRF evaluation during authentication if the vault uses it
+      extensions: prfSupported
+        ? ({ prf: { eval: { first: PRF_EVAL_INPUT } } } as any)
+        : undefined,
     },
   })) as PublicKeyCredential
 
@@ -257,30 +258,45 @@ export const authenticatePasskey = async (
     throw new Error("Authentication failed")
   }
 
-  return {
-    assertion,
-    oxidikoId,
-    signature, // Use our deterministic signature, not the WebAuthn signature
+  const pubKey = credIdBytes
+  const oxidikoId = await sha256(pubKey)
+
+  // HIGH-1 FIX: Derive wrap key from hardware-bound PRF output if available,
+  // otherwise fall back to the legacy static hash for backward compatibility.
+  let signature: ArrayBuffer
+  const assertionExtensions = assertion.getClientExtensionResults() as any
+
+  if (prfSupported && assertionExtensions?.prf?.results?.first) {
+    // PRF path: hardware-bound, cannot be replicated from IndexedDB alone.
+    signature = assertionExtensions.prf.results.first
+  } else {
+    // Legacy path: static hash — only used for old vaults.
+    signature = await createLegacyWrapSignature(credIdBytes.buffer)
   }
+
+  return { assertion, oxidikoId, signature }
 }
 
-// Authenticate with discoverable credentials (for cross-device usage)
-export const authenticateWithDiscoverableCredential = async (): Promise<{
+// Authenticate with discoverable credentials (for cross-device usage).
+// HIGH-1 FIX: Uses a random challenge and PRF extension for hardware-bound key derivation.
+export const authenticateWithDiscoverableCredential = async (
+  prfSupported?: boolean,
+): Promise<{
   assertion: PublicKeyCredential
   oxidikoId: string
   signature: ArrayBuffer
   credId: string
 }> => {
-  const encoder = new TextEncoder()
-  const challenge = encoder.encode("OxidikoAuthChallenge")
+  const challenge = generateRandomBytes(32)
 
-  // Don't specify allowCredentials - let the authenticator show available passkeys
   const assertion = (await navigator.credentials.get({
     publicKey: {
       challenge: challenge,
-      // No allowCredentials - this enables discoverable credential flow
       userVerification: "required",
       timeout: 60000,
+      extensions: prfSupported
+        ? ({ prf: { eval: { first: PRF_EVAL_INPUT } } } as any)
+        : undefined,
     },
   })) as PublicKeyCredential
 
@@ -288,27 +304,24 @@ export const authenticateWithDiscoverableCredential = async (): Promise<{
     throw new Error("Authentication failed")
   }
 
-  // Extract credential ID
   const credIdBytes = new Uint8Array(assertion.rawId)
   const credId = Array.from(credIdBytes)
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("")
 
-  // Create deterministic signature for key wrapping
-  const signature = await createWrapSignature(assertion.rawId)
-
-  // Extract public key from credential ID (using credential ID as proxy)
   const pubKey = credIdBytes
-
-  // Recompute Oxidiko ID
   const oxidikoId = await sha256(pubKey)
 
-  return {
-    assertion,
-    oxidikoId,
-    signature,
-    credId,
+  let signature: ArrayBuffer
+  const assertionExtensions = assertion.getClientExtensionResults() as any
+
+  if (prfSupported && assertionExtensions?.prf?.results?.first) {
+    signature = assertionExtensions.prf.results.first
+  } else {
+    signature = await createLegacyWrapSignature(assertion.rawId)
   }
+
+  return { assertion, oxidikoId, signature, credId }
 }
 
 // Check if WebAuthn is supported

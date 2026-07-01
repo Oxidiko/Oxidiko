@@ -158,6 +158,7 @@ export const createVault = async (
   pin: string,
   passkeySignature: ArrayBuffer,
   passkeyName: string,
+  prfSupported: boolean = false, // HIGH-1: record whether vault uses PRF-bound key
 ): Promise<void> => {
   if (pin.length < 8) {
     throw new Error("PIN must be at least 8 characters long")
@@ -186,7 +187,8 @@ export const createVault = async (
   const vaultData = {
     oxidiko_id: oxidikoId,
     cred_id: credId,
-    passkey_name: passkeyName, // Save the passkey name
+    passkey_name: passkeyName,
+    prf_supported: prfSupported, // HIGH-1: whether the vault was created with PRF hardware binding
     wrappedKey_passkey: Array.from(new Uint8Array(wrappedKeyPasskey)),
     wrappedKey_pin: Array.from(new Uint8Array(wrappedKeyPin)),
     iv_passkey: Array.from(ivPasskey),
@@ -246,6 +248,16 @@ export const getStoredRecId = async (): Promise<string | null> => {
     return vaultData?.rec_id || null
   } catch {
     return null
+  }
+}
+
+// Get stored prf_supported flag (HIGH-1: tells unlock which key derivation path to use)
+export const getStoredPrfSupported = async (): Promise<boolean> => {
+  try {
+    const vaultData = await retrieveData(PROFILE_KEY)
+    return !!vaultData?.prf_supported
+  } catch {
+    return false
   }
 }
 
